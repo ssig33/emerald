@@ -44,9 +44,7 @@ const createMockResponse = (chunks: string[], status = 200) => ({
 
 describe("useApi", () => {
   const mockRequest: ApiRequest = {
-    key: "sk-test-key-123",
     message: "Hello, OpenAI!",
-    ts: "123456789",
   };
 
   const mockConversationHistory: Message[] = [
