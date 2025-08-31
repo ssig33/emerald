@@ -2,10 +2,72 @@ import { useState, useEffect } from "react";
 import { ApiRequest, Message, ImageData } from "../types";
 import { useSettings } from "./useSettings";
 
+// Define available tools
+const AVAILABLE_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "get_page_text",
+      description: "Extract text content from the current web page",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
+];
+
 export const useApi = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
+
+  const executeTools = async (toolCalls: any[]): Promise<any[]> => {
+    const results = [];
+
+    for (const toolCall of toolCalls) {
+      const { function: func } = toolCall;
+
+      if (func.name === "get_page_text") {
+        const tabs = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        console.log("Active tabs:", tabs);
+        if (!tabs[0]?.id) {
+          results.push({
+            tool_call_id: toolCall.id,
+            role: "tool",
+            content: "Error: No active tab found",
+          });
+          continue;
+        }
+        try {
+          const result = await chrome.tabs.sendMessage(tabs[0].id!, {
+            action: "extractText",
+          });
+
+          console.log("Extracted page text:", result);
+
+          results.push({
+            tool_call_id: toolCall.id,
+            role: "tool",
+            content: result.text,
+          });
+        } catch (error) {
+          console.log("ERROR extracting page text:", error);
+          results.push({
+            tool_call_id: toolCall.id,
+            role: "tool",
+            content: `Error: ${error instanceof Error ? error.message : "Failed to extract page text"}`,
+          });
+        }
+      }
+    }
+
+    return results;
+  };
 
   const sendMessage = async (
     request: ApiRequest,
@@ -103,17 +165,21 @@ export const useApi = () => {
       }
 
       // OpenAI API request format
+      const apiPayload: any = {
+        model: "gpt-4.1",
+        messages,
+        tools: AVAILABLE_TOOLS,
+        tool_choice: "auto",
+        stream: true,
+      };
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${settings.openaiApiKey}`,
         },
-        body: JSON.stringify({
-          model: "gpt-5",
-          messages,
-          stream: true,
-        }),
+        body: JSON.stringify(apiPayload),
       });
 
       if (!response.ok) {
@@ -124,6 +190,8 @@ export const useApi = () => {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let toolCallsBuffer: { [index: string]: any } = {};
+      let isComplete = false;
 
       if (reader) {
         while (true) {
@@ -140,9 +208,8 @@ export const useApi = () => {
             if (line.startsWith("data: ")) {
               const data = line.slice(6);
               if (data === "[DONE]") {
-                onComplete?.();
-                setLoading(false);
-                return;
+                isComplete = true;
+                break;
               }
               if (data.startsWith("{")) {
                 try {
@@ -150,9 +217,127 @@ export const useApi = () => {
                   if (parsed.error) {
                     throw new Error(parsed.error.message || "OpenAI API Error");
                   }
-                  const content = parsed.choices?.[0]?.delta?.content;
-                  if (content) {
-                    onMessage?.(content);
+
+                  const delta = parsed.choices?.[0]?.delta;
+                  const finishReason = parsed.choices?.[0]?.finish_reason;
+
+                  if (delta?.content) {
+                    onMessage?.(delta.content);
+                  }
+
+                  if (delta?.tool_calls) {
+                    for (const toolCallDelta of delta.tool_calls) {
+                      const index = toolCallDelta.index;
+
+                      if (!toolCallsBuffer[index]) {
+                        toolCallsBuffer[index] = {
+                          id: "",
+                          type: "function",
+                          function: {
+                            name: "",
+                            arguments: "",
+                          },
+                        };
+                      }
+
+                      if (toolCallDelta.id) {
+                        toolCallsBuffer[index].id += toolCallDelta.id;
+                      }
+
+                      if (toolCallDelta.function) {
+                        if (toolCallDelta.function.name) {
+                          toolCallsBuffer[index].function.name +=
+                            toolCallDelta.function.name;
+                        }
+                        if (toolCallDelta.function.arguments) {
+                          toolCallsBuffer[index].function.arguments +=
+                            toolCallDelta.function.arguments;
+                        }
+                      }
+                    }
+                  }
+
+                  if (finishReason === "tool_calls") {
+                    const toolCallsArray = Object.keys(toolCallsBuffer)
+                      .sort((a, b) => parseInt(a) - parseInt(b))
+                      .map((key) => toolCallsBuffer[key]);
+
+                    const toolResults = await executeTools(toolCallsArray);
+
+                    // Add tool calls and results to messages
+                    (messages as any[]).push({
+                      role: "assistant",
+                      content: null,
+                      tool_calls: toolCallsArray,
+                    });
+
+                    for (const result of toolResults) {
+                      messages.push(result as any);
+                    }
+
+                    // Make another API call with tool results
+                    const followUpResponse = await fetch(apiUrl, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${settings.openaiApiKey}`,
+                      },
+                      body: JSON.stringify({
+                        ...apiPayload,
+                        messages,
+                      }),
+                    });
+
+                    if (!followUpResponse.ok) {
+                      throw new Error(
+                        `HTTP ${followUpResponse.status}: ${followUpResponse.statusText}`,
+                      );
+                    }
+
+                    // Process follow-up response
+                    const followUpReader = followUpResponse.body?.getReader();
+                    let followUpBuffer = "";
+
+                    if (followUpReader) {
+                      while (true) {
+                        const { done: followUpDone, value: followUpValue } =
+                          await followUpReader.read();
+                        if (followUpDone) break;
+
+                        followUpBuffer += decoder.decode(followUpValue, {
+                          stream: true,
+                        });
+                        let followUpLines = followUpBuffer.split("\n");
+                        followUpBuffer = followUpLines.pop() as string;
+
+                        for (const followUpLine of followUpLines) {
+                          if (followUpLine.startsWith("data: ")) {
+                            const followUpData = followUpLine.slice(6);
+                            if (followUpData === "[DONE]") {
+                              onComplete?.();
+                              setLoading(false);
+                              return;
+                            }
+                            if (followUpData.startsWith("{")) {
+                              try {
+                                const followUpParsed = JSON.parse(followUpData);
+                                const followUpContent =
+                                  followUpParsed.choices?.[0]?.delta?.content;
+                                if (followUpContent) {
+                                  onMessage?.(followUpContent);
+                                }
+                              } catch (parseErr) {
+                                // Ignore parse errors
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+
+                    onComplete?.();
+                    setLoading(false);
+                    return;
                   }
                 } catch (parseErr) {
                   if (
@@ -166,6 +351,8 @@ export const useApi = () => {
               }
             }
           }
+
+          if (isComplete) break;
         }
       }
 
