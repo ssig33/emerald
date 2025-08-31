@@ -15,12 +15,10 @@ import MenuIcon from "@mui/icons-material/Menu";
 import AddIcon from "@mui/icons-material/Add";
 import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
-import ContextSelector from "../components/ContextSelector";
 import ThreadList from "../components/ThreadList";
 import ApiKeySettings from "../components/ApiKeySettings";
 import { Message, ImageData } from "../types";
 import { useApi } from "../hooks/useApi";
-import { useContextData } from "../hooks/useContextStore";
 import { useChatThread } from "../hooks/useChatThread";
 
 const theme = createTheme({
@@ -67,7 +65,6 @@ const App: React.FC = () => {
   } = useChatThread();
 
   const { sendMessage, error } = useApi();
-  const { contextData, includePageText } = useContextData();
 
   const generateMessageId = (): string => {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -103,11 +100,10 @@ const App: React.FC = () => {
       addMessage(aiMessage);
       setInputValue(""); // Clear input field
 
-      // API call with context data (text and images)
-      const contextToSend: { text?: string; images?: ImageData[] } | undefined =
-        (includePageText && contextData.text) || (images && images.length > 0)
+      // API call with images only
+      const contextToSend: { images?: ImageData[] } | undefined =
+        images && images.length > 0
           ? {
-              text: includePageText ? contextData.text : undefined,
               images: images,
             }
           : undefined;
@@ -131,11 +127,10 @@ const App: React.FC = () => {
     [
       sendMessage,
       threadId,
-      includePageText,
-      contextData,
       addMessage,
       appendToLastMessage,
       completeLastMessage,
+      messages,
     ],
   );
 
@@ -193,7 +188,6 @@ const App: React.FC = () => {
             overflow: "hidden",
           }}
         >
-          <ContextSelector />
           <ChatArea messages={messages} error={error} />
           <InputArea
             onSendMessage={handleSendMessage}
