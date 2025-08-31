@@ -10,7 +10,7 @@ export const useApi = () => {
   const sendMessage = async (
     request: ApiRequest,
     conversationHistory: Message[] = [],
-    contextData?: { text?: string; images?: ImageData[] },
+    contextData?: { images?: ImageData[] },
     onMessage?: (chunk: string) => void,
     onComplete?: () => void,
   ) => {
@@ -27,11 +27,8 @@ export const useApi = () => {
 
       const apiUrl = "https://api.openai.com/v1/chat/completions";
 
-      // Build current message with context data
-      let currentMessage = request.message;
-      if (contextData?.text) {
-        currentMessage = `${currentMessage}\n\nPage content: ${contextData.text}`;
-      }
+      // Build current message
+      const currentMessage = request.message;
 
       // Convert conversation history to OpenAI format
       const messages: Array<{

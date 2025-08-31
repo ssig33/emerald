@@ -12,24 +12,7 @@ vi.mock("../../hooks/useScreenCapture", () => ({
   useScreenCapture: () => mockUseScreenCapture,
 }));
 
-// Mock useContext hook
-const mockUseContext = {
-  contextData: {
-    url: "https://example.com",
-    text: "",
-  },
-  contextState: {
-    url: true,
-    text: false,
-  },
-  loading: false,
-  error: "",
-  handleContextChange: vi.fn(),
-};
-
-vi.mock("../../hooks/useContextStore", () => ({
-  useContextData: () => mockUseContext,
-}));
+// Remove useContextStore mock as it's no longer needed
 
 // No need to mock gyazo anymore since it's removed
 
