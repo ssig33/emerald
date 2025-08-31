@@ -35,6 +35,7 @@ export const useSettings = () => {
   const saveSettings = async (newSettings: Partial<Settings>) => {
     try {
       const updatedSettings = { ...settings, ...newSettings };
+      console.log("Saving settings:", updatedSettings);
       await chrome.storage.local.set({ settings: updatedSettings });
       setSettings(updatedSettings);
     } catch (error) {
@@ -42,12 +43,12 @@ export const useSettings = () => {
     }
   };
 
-  const updateApiKey = (apiKey: string) => {
-    saveSettings({ openaiApiKey: apiKey });
+  const updateApiKey = async (apiKey: string) => {
+    await saveSettings({ openaiApiKey: apiKey });
   };
 
-  const updateSystemPrompt = (systemPrompt: string) => {
-    saveSettings({ systemPrompt });
+  const updateSystemPrompt = async (systemPrompt: string) => {
+    await saveSettings({ systemPrompt });
   };
 
   return {
