@@ -107,7 +107,7 @@ describe("useApi", () => {
           Authorization: "Bearer sk-test-key-123",
         },
         body: JSON.stringify({
-          model: "gpt-5",
+          model: "gpt-4.1",
           messages: [
             {
               role: "system",
@@ -118,6 +118,21 @@ describe("useApi", () => {
               content: "Hello, OpenAI!",
             },
           ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "get_page_text",
+                description: "Extract text content from the current web page",
+                parameters: {
+                  type: "object",
+                  properties: {},
+                  required: [],
+                },
+              },
+            },
+          ],
+          tool_choice: "auto",
           stream: true,
         }),
       },
@@ -153,7 +168,7 @@ describe("useApi", () => {
           Authorization: "Bearer sk-test-key-123",
         },
         body: JSON.stringify({
-          model: "gpt-5",
+          model: "gpt-4.1",
           messages: [
             {
               role: "user",
@@ -168,101 +183,30 @@ describe("useApi", () => {
               content: "Hello, OpenAI!",
             },
           ],
-          stream: true,
-        }),
-      },
-    );
-  });
-
-  it("should include context data in message", async () => {
-    const chunks = [
-      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
-      "data: [DONE]\n",
-    ];
-    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
-
-    const contextData = {
-      text: "Page content here",
-    };
-
-    const { result } = renderHook(() => useApi());
-
-    await act(async () => {
-      await result.current.sendMessage(mockRequest, [], contextData);
-    });
-
-    const expectedMessage = `Hello, OpenAI!
-
-Page content: Page content here`;
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer sk-test-key-123",
-        },
-        body: JSON.stringify({
-          model: "gpt-5",
-          messages: [
+          tools: [
             {
-              role: "system",
-              content: "You are a helpful AI assistant for testing.",
-            },
-            {
-              role: "user",
-              content: expectedMessage,
+              type: "function",
+              function: {
+                name: "get_page_text",
+                description: "Extract text content from the current web page",
+                parameters: {
+                  type: "object",
+                  properties: {},
+                  required: [],
+                },
+              },
             },
           ],
+          tool_choice: "auto",
           stream: true,
         }),
       },
     );
   });
 
-  it("should handle partial context data", async () => {
-    const chunks = [
-      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
-      "data: [DONE]\n",
-    ];
-    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+  // Note: Context data is now handled via tool calls instead of direct message injection
 
-    const contextData = {};
-
-    const { result } = renderHook(() => useApi());
-
-    await act(async () => {
-      await result.current.sendMessage(mockRequest, [], contextData);
-    });
-
-    const expectedMessage = `Hello, OpenAI!`;
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer sk-test-key-123",
-        },
-        body: JSON.stringify({
-          model: "gpt-5",
-          messages: [
-            {
-              role: "system",
-              content: "You are a helpful AI assistant for testing.",
-            },
-            {
-              role: "user",
-              content: expectedMessage,
-            },
-          ],
-          stream: true,
-        }),
-      },
-    );
-  });
+  // Note: Partial context data test removed as context is now handled via tool calls
 
   it("should handle HTTP errors", async () => {
     global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse([], 500));
@@ -377,7 +321,7 @@ Page content: Page content here`;
           Authorization: "Bearer sk-test-key-123",
         },
         body: JSON.stringify({
-          model: "gpt-5",
+          model: "gpt-4.1",
           messages: [
             {
               role: "system",
@@ -388,6 +332,21 @@ Page content: Page content here`;
               content: "Hello, OpenAI!",
             },
           ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "get_page_text",
+                description: "Extract text content from the current web page",
+                parameters: {
+                  type: "object",
+                  properties: {},
+                  required: [],
+                },
+              },
+            },
+          ],
+          tool_choice: "auto",
           stream: true,
         }),
       },
@@ -417,7 +376,7 @@ Page content: Page content here`;
           Authorization: "Bearer sk-test-key-123",
         },
         body: JSON.stringify({
-          model: "gpt-5",
+          model: "gpt-4.1",
           messages: [
             {
               role: "user",
@@ -432,6 +391,21 @@ Page content: Page content here`;
               content: "Hello, OpenAI!",
             },
           ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "get_page_text",
+                description: "Extract text content from the current web page",
+                parameters: {
+                  type: "object",
+                  properties: {},
+                  required: [],
+                },
+              },
+            },
+          ],
+          tool_choice: "auto",
           stream: true,
         }),
       },
