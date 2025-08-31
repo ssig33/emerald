@@ -12,7 +12,7 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useSettings } from "../hooks/useSettings";
 
 const ApiKeySettings: React.FC = () => {
-  const { settings, updateApiKey, updateSystemPrompt } = useSettings();
+  const { settings, saveSettings } = useSettings();
   const [apiKey, setApiKey] = useState(settings.openaiApiKey);
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -23,11 +23,11 @@ const ApiKeySettings: React.FC = () => {
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
-      await updateApiKey(apiKey);
-      await updateSystemPrompt(systemPrompt);
+      await saveSettings({ openaiApiKey: apiKey, systemPrompt });
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (error) {
+      console.error("Failed to save settings:", error);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 2000);
     }
