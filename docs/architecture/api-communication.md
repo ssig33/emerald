@@ -88,6 +88,10 @@ Raw Stream → Buffer Management → Line Processing → JSON Parsing → Event 
   - Parses HTML using Defuddle for intelligent content extraction
   - Converts processed content to Markdown using Turndown
   - Returns clean, structured text content
+- `get_current_time`: Provides current local date and time
+  - Returns current local time in readable format
+  - Essential for temporal context in conversations
+  - Automatically called at conversation start for time-aware responses
 
 **Execution Pattern**:
 
