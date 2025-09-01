@@ -1,10 +1,10 @@
-import { storage } from "./storage";
 import { Message, ChatHistoryItem } from "../types";
 
 export const chatStorage = {
   async getThreadList(): Promise<ChatHistoryItem[]> {
     try {
-      return (await storage.get<ChatHistoryItem[]>("system/history")) || [];
+      const result = await chrome.storage.local.get("system/history");
+      return result["system/history"] || [];
     } catch (error) {
       console.error("Failed to get thread list:", error);
       return [];
@@ -17,11 +17,8 @@ export const chatStorage = {
     lastUpdated: number;
   } | null> {
     try {
-      return await storage.get<{
-        messages: Message[];
-        title?: string;
-        lastUpdated: number;
-      }>(`chat_${threadId}`);
+      const result = await chrome.storage.local.get(`chat_${threadId}`);
+      return result[`chat_${threadId}`] || null;
     } catch (error) {
       console.error("Failed to get chat history:", error);
       return null;
@@ -47,11 +44,13 @@ export const chatStorage = {
         lastUpdated: Date.now(),
       };
 
-      await storage.set(`chat_${threadId}`, chatData);
+      await chrome.storage.local.set({ [`chat_${threadId}`]: chatData });
 
-      const history =
-        (await storage.get<ChatHistoryItem[]>("system/history")) || [];
-      const existingIndex = history.findIndex((h) => h.threadId === threadId);
+      const historyResult = await chrome.storage.local.get("system/history");
+      const history: ChatHistoryItem[] = historyResult["system/history"] || [];
+      const existingIndex = history.findIndex(
+        (h: ChatHistoryItem) => h.threadId === threadId,
+      );
 
       const chatItem: ChatHistoryItem = {
         threadId,
@@ -66,10 +65,13 @@ export const chatStorage = {
       }
 
       const recentHistory = history
-        .sort((a, b) => b.lastUpdated - a.lastUpdated)
+        .sort(
+          (a: ChatHistoryItem, b: ChatHistoryItem) =>
+            b.lastUpdated - a.lastUpdated,
+        )
         .slice(0, 30);
 
-      await storage.set("system/history", recentHistory);
+      await chrome.storage.local.set({ "system/history": recentHistory });
     } catch (error) {
       console.error("Failed to save chat history:", error);
     }

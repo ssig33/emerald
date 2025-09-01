@@ -37,8 +37,10 @@ src/
 │   ├── tools/          # Chrome extension tools
 │   └── message-builder.ts
 ├── types/              # TypeScript type definitions
+├── utils/              # Utility functions (chatStorage)
 ├── content/            # Content script functionality
 ├── background/         # Background script
+├── sidepanel/          # Chrome sidepanel UI
 └── test/              # Test utilities and mocks
 ```
 

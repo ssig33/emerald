@@ -1,8 +1,6 @@
-import browser from "webextension-polyfill";
+console.log("Emerald background script loaded");
 
-console.log("Robotaro background script loaded");
-
-browser.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener((details) => {
   console.log("Extension installed:", details);
 });
 
@@ -80,21 +78,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     : "Image processing failed",
               });
             }
-          },
-        );
-        return true;
-      }
-      break;
-
-    case "getPageText":
-      console.log("Background handling getPageText");
-      console.log("Sender tab:", sender.tab);
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(
-          sender.tab.id,
-          { action: "extractText" },
-          (response) => {
-            sendResponse(response);
           },
         );
         return true;
