@@ -1,4 +1,3 @@
-import { extractTextFromPage } from "../utils/textExtractor";
 import { startRectangleSelection } from "./capture";
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
@@ -12,16 +11,18 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       });
       break;
 
-    case "extractText":
+    case "extractHtml":
       try {
-        const text = extractTextFromPage();
-        console.log("Extracted text:", text);
-        sendResponse({ text });
+        const html = document.documentElement.outerHTML;
+        console.log("Extracted HTML body content");
+        sendResponse({ text: html });
       } catch (error) {
-        console.error("Text extraction error:", error);
+        console.error("HTML body extraction error:", error);
         sendResponse({
           error:
-            error instanceof Error ? error.message : "Text extraction failed",
+            error instanceof Error
+              ? error.message
+              : "HTML body extraction failed",
         });
       }
       break;

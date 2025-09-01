@@ -1,4 +1,6 @@
 import { ToolCall, ToolResult, ToolExecutionError } from "../../types/openai";
+import Defuddle from "defuddle";
+import TurndownService from "turndown";
 
 export interface ToolDefinition {
   type: "function";
@@ -73,7 +75,10 @@ export class ToolExecutor {
       }
 
       const result = await chrome.tabs.sendMessage(tabs[0].id, {
-        action: "extractText",
+        action: "extractHtml",
+      });
+      const info = await chrome.tabs.sendMessage(tabs[0].id, {
+        action: "getPageInfo",
       });
 
       if (!result || typeof result.text !== "string") {
@@ -83,10 +88,20 @@ export class ToolExecutor {
         );
       }
 
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(result.text, "text/html");
+
+      const defuddle = new Defuddle(doc, { markdown: true, url: info.url });
+      const parseResult = defuddle.parse();
+
+      const contentHTML = parseResult.content;
+      const turndownService = new TurndownService();
+      const content = turndownService.turndown(contentHTML);
+
       return {
         tool_call_id: toolCallId,
         role: "tool",
-        content: result.text,
+        content,
       };
     } catch (error) {
       if (error instanceof ToolExecutionError) {

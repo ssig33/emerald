@@ -16,6 +16,7 @@
     "@mui/icons-material": "^7.3.1",
     "@mui/material": "^7.3.1",
     "@types/chrome": "^0.1.4",
+    "defuddle": "^0.6.6",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
     "prettier": "^3.6.2",
@@ -23,6 +24,7 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "turndown": "^7.2.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -31,6 +33,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/turndown": "^5.0.5",
     "@types/webextension-polyfill": "^0.12.3",
     "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^26.1.0",
