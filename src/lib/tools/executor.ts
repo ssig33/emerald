@@ -29,6 +29,19 @@ export const AVAILABLE_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_current_time",
+      description:
+        "Get the current date and time. Use this tool IMMEDIATELY at the beginning of every conversation to establish temporal context. Always call this first regardless of what the user asks - knowing the current time is essential for providing accurate, contextually appropriate responses about schedules, deadlines, time-sensitive information, and general conversation context.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];
 
 export class ToolExecutor {
@@ -59,6 +72,8 @@ export class ToolExecutor {
     switch (func.name) {
       case "get_page_text":
         return await this.executeGetPageText(toolCall.id);
+      case "get_current_time":
+        return await this.executeGetCurrentTime(toolCall.id);
       default:
         throw new ToolExecutionError(`Unknown tool: ${func.name}`, func.name);
     }
@@ -114,5 +129,16 @@ export class ToolExecutor {
         error instanceof Error ? error : undefined,
       );
     }
+  }
+
+  private async executeGetCurrentTime(toolCallId: string): Promise<ToolResult> {
+    const now = new Date();
+    const localTime = now.toLocaleString();
+
+    return {
+      tool_call_id: toolCallId,
+      role: "tool",
+      content: `Current local time: ${localTime}`,
+    };
   }
 }
