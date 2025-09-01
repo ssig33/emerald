@@ -13,12 +13,16 @@ describe("ToolExecutor", () => {
   describe("execute", () => {
     it("should execute get_page_text tool successfully", async () => {
       const mockTabs = [{ id: 123, active: true, currentWindow: true }];
-      const mockResult = { text: "Sample page content" };
+      const mockHtmlResult = { text: "<body>Sample page content</body>" };
+      const mockInfoResult = { url: "https://example.com" };
 
       global.chrome = {
         tabs: {
           query: vi.fn().mockResolvedValue(mockTabs),
-          sendMessage: vi.fn().mockResolvedValue(mockResult),
+          sendMessage: vi
+            .fn()
+            .mockResolvedValueOnce(mockHtmlResult)
+            .mockResolvedValueOnce(mockInfoResult),
         },
       } as any;
 
@@ -47,7 +51,10 @@ describe("ToolExecutor", () => {
         currentWindow: true,
       });
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(123, {
-        action: "extractText",
+        action: "extractHtml",
+      });
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(123, {
+        action: "getPageInfo",
       });
     });
 
@@ -231,12 +238,18 @@ describe("ToolExecutor", () => {
 
     it("should execute multiple tools", async () => {
       const mockTabs = [{ id: 123, active: true, currentWindow: true }];
-      const mockResult = { text: "Sample page content" };
+      const mockHtmlResult = { text: "<body>Sample page content</body>" };
+      const mockInfoResult = { url: "https://example.com" };
 
       global.chrome = {
         tabs: {
           query: vi.fn().mockResolvedValue(mockTabs),
-          sendMessage: vi.fn().mockResolvedValue(mockResult),
+          sendMessage: vi
+            .fn()
+            .mockResolvedValueOnce(mockHtmlResult)
+            .mockResolvedValueOnce(mockInfoResult)
+            .mockResolvedValueOnce(mockHtmlResult)
+            .mockResolvedValueOnce(mockInfoResult),
         },
       } as any;
 
@@ -282,7 +295,8 @@ describe("ToolExecutor", () => {
           query: vi.fn().mockResolvedValue(mockTabs),
           sendMessage: vi
             .fn()
-            .mockResolvedValueOnce({ text: "Success" })
+            .mockResolvedValueOnce({ text: "<body>Success</body>" })
+            .mockResolvedValueOnce({ url: "https://example.com" })
             .mockRejectedValueOnce(new Error("Failed")),
         },
       } as any;

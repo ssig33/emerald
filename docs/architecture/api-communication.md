@@ -83,7 +83,11 @@ Raw Stream → Buffer Management → Line Processing → JSON Parsing → Event 
 
 **Current Tools**:
 
-- `get_page_text`: Extracts text content from active tab
+- `get_page_text`: Extracts and processes page content from active tab
+  - Fetches HTML content from the page
+  - Parses HTML using Defuddle for intelligent content extraction
+  - Converts processed content to Markdown using Turndown
+  - Returns clean, structured text content
 
 **Execution Pattern**:
 
