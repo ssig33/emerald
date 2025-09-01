@@ -20,7 +20,8 @@ export const AVAILABLE_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "get_page_text",
-      description: "Extract text content from the current web page",
+      description:
+        "Extract the complete text content and structure from the current web page. Use this tool IMMEDIATELY and PROACTIVELY whenever: the user asks about 'this page', 'this article', 'here', or references current content; when discussing, analyzing, or summarizing webpage content; when the user's question might be answered by page content; when helping with anything related to the current webpage. Always fetch page content first before making assumptions. This provides clean, structured text with headings, links, and context that is essential for understanding what the user is viewing.",
       parameters: {
         type: "object",
         properties: {},
