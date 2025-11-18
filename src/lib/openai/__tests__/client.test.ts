@@ -99,7 +99,7 @@ describe("OpenAIClient", () => {
       const requestBody = JSON.parse(
         (global.fetch as any).mock.calls[0][1].body,
       );
-      expect(requestBody.model).toBe("gpt-4.1");
+      expect(requestBody.model).toBe("gpt-5.1");
       expect(requestBody.messages).toEqual(mockMessages);
       expect(requestBody.tools).toEqual(
         expect.arrayContaining([

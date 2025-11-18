@@ -238,7 +238,7 @@ OpenAI Tool Request → ToolExecutor.execute() → Chrome API Call → Result �
 ```typescript
 interface OpenAIClientConfig {
   apiKey: string; // Required: OpenAI API authentication
-  model?: string; // Optional: Model selection (default: gpt-4.1)
+  model?: string; // Optional: Model selection (default: gpt-5.1)
   baseUrl?: string; // Optional: Custom API endpoint
 }
 ```
