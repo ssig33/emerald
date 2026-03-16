@@ -54,7 +54,11 @@ export class MessageBuilder {
   ): OpenAIMessage {
     let text = message;
     if (pageContent) {
-      text = `<page_context>\nTitle: ${pageContent.title}\nURL: ${pageContent.url}\n\n${pageContent.markdown}\n</page_context>\n\n${message}`;
+      const content =
+        pageContent.contentType === "html"
+          ? pageContent.html
+          : pageContent.markdown;
+      text = `<page_context>\nTitle: ${pageContent.title}\nURL: ${pageContent.url}\n\n${content}\n</page_context>\n\n${message}`;
     }
 
     if (contextImages && contextImages.length > 0) {

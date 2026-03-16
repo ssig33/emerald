@@ -13,10 +13,14 @@ export interface ImageData {
   timestamp: number;
 }
 
+export type PageContentType = "markdown" | "html";
+
 export interface PageContent {
   title: string;
   url: string;
   markdown: string;
+  html: string;
+  contentType: PageContentType;
 }
 
 export interface ContextData {
