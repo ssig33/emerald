@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -14,12 +14,14 @@ import {
   DialogActions,
   Button,
   Typography,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
 import ArticleIcon from "@mui/icons-material/Article";
 import ImageSelector from "./ImageSelector";
-import { ImageData, PageContent } from "../types";
+import { ImageData, PageContent, PageContentType } from "../types";
 import { extractPageContent } from "../lib/page-extractor";
 
 interface InputAreaProps {
@@ -46,6 +48,29 @@ const InputArea: React.FC<InputAreaProps> = ({
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [isCapturingPage, setIsCapturingPage] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dialogOpen) {
+      chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+        setCurrentTabUrl(tabs[0]?.url || null);
+      });
+    }
+  }, [dialogOpen]);
+
+  const canToggleHtml =
+    currentTabUrl !== null &&
+    pageContent !== null &&
+    currentTabUrl === pageContent.url;
+
+  const handleContentTypeChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newValue: PageContentType | null,
+  ) => {
+    if (newValue && pageContent) {
+      setPageContent({ ...pageContent, contentType: newValue });
+    }
+  };
 
   const currentValue = value !== undefined ? value : message;
   const handleValueChange = (newValue: string) => {
@@ -189,12 +214,31 @@ const InputArea: React.FC<InputAreaProps> = ({
       >
         <DialogTitle>{pageContent?.title}</DialogTitle>
         <DialogContent>
-          <Typography variant="caption" color="text.secondary" gutterBottom>
-            {pageContent?.url}
-          </Typography>
           <Box
             sx={{
-              mt: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 1,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              {pageContent?.url}
+            </Typography>
+            <ToggleButtonGroup
+              value={pageContent?.contentType || "markdown"}
+              exclusive
+              onChange={handleContentTypeChange}
+              size="small"
+            >
+              <ToggleButton value="markdown">Markdown</ToggleButton>
+              <ToggleButton value="html" disabled={!canToggleHtml}>
+                HTML
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <Box
+            sx={{
               maxHeight: 400,
               overflow: "auto",
               whiteSpace: "pre-wrap",
@@ -202,7 +246,9 @@ const InputArea: React.FC<InputAreaProps> = ({
               fontSize: "0.85rem",
             }}
           >
-            {pageContent?.markdown}
+            {pageContent?.contentType === "html"
+              ? pageContent?.html
+              : pageContent?.markdown}
           </Box>
         </DialogContent>
         <DialogActions>

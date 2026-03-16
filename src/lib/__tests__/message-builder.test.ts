@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MessageBuilder } from "../message-builder";
-import { Message, ImageData } from "../../types";
+import { Message, ImageData, PageContent } from "../../types";
 
 describe("MessageBuilder", () => {
   let messageBuilder: MessageBuilder;
@@ -262,6 +262,56 @@ describe("MessageBuilder", () => {
         {
           role: "user",
           content: "Hello",
+        },
+      ]);
+    });
+
+    it("should include markdown content when contentType is markdown", () => {
+      const pageContent: PageContent = {
+        title: "Test Page",
+        url: "https://example.com",
+        markdown: "# Hello",
+        html: "<h1>Hello</h1>",
+        contentType: "markdown",
+      };
+
+      const result = messageBuilder.buildMessages(
+        "Summarize this",
+        [],
+        undefined,
+        undefined,
+        pageContent,
+      );
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: `<page_context>\nTitle: Test Page\nURL: https://example.com\n\n# Hello\n</page_context>\n\nSummarize this`,
+        },
+      ]);
+    });
+
+    it("should include html content when contentType is html", () => {
+      const pageContent: PageContent = {
+        title: "Test Page",
+        url: "https://example.com",
+        markdown: "# Hello",
+        html: "<h1>Hello</h1>",
+        contentType: "html",
+      };
+
+      const result = messageBuilder.buildMessages(
+        "Summarize this",
+        [],
+        undefined,
+        undefined,
+        pageContent,
+      );
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: `<page_context>\nTitle: Test Page\nURL: https://example.com\n\n<h1>Hello</h1>\n</page_context>\n\nSummarize this`,
         },
       ]);
     });

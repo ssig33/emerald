@@ -37,5 +37,7 @@ export async function extractPageContent(): Promise<PageContent> {
     title: info.title || "",
     url: info.url || "",
     markdown,
+    html: contentHTML,
+    contentType: "markdown",
   };
 }
