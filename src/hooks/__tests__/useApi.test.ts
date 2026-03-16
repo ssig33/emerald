@@ -117,6 +117,7 @@ describe("useApi", () => {
       [],
       "You are a helpful AI assistant for testing.",
       undefined,
+      undefined,
     );
 
     expect(mockSendMessage).toHaveBeenCalledWith(
@@ -164,6 +165,7 @@ describe("useApi", () => {
       "Hello, OpenAI!",
       mockConversationHistory,
       "You are a helpful AI assistant for testing.",
+      undefined,
       undefined,
     );
   });

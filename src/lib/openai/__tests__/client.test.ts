@@ -106,7 +106,7 @@ describe("OpenAIClient", () => {
           expect.objectContaining({
             type: "function",
             function: expect.objectContaining({
-              name: "get_page_text",
+              name: "get_current_time",
             }),
           }),
         ]),
@@ -193,7 +193,7 @@ describe("OpenAIClient", () => {
           expect.objectContaining({
             type: "function",
             function: expect.objectContaining({
-              name: "get_page_text",
+              name: "get_current_time",
             }),
           }),
         ]),

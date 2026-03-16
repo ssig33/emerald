@@ -22,7 +22,7 @@ describe("InputArea", () => {
     expect(
       screen.getByPlaceholderText("Type a message..."),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(2); // Camera and Send buttons
+    expect(screen.getAllByRole("button")).toHaveLength(3); // Camera, PageCapture, and Send buttons
   });
 
   it("allows text input", async () => {
@@ -43,12 +43,16 @@ describe("InputArea", () => {
     render(<InputArea onSendMessage={mockOnSendMessage} />);
 
     const textField = screen.getByPlaceholderText("Type a message...");
-    const sendButton = screen.getAllByRole("button")[1]; // Second button is Send
+    const sendButton = screen.getAllByRole("button")[2]; // Third button is Send
 
     await user.type(textField, "Test message");
     await user.click(sendButton);
 
-    expect(mockOnSendMessage).toHaveBeenCalledWith("Test message", []);
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      "Test message",
+      [],
+      undefined,
+    );
   });
 
   it("can send message with Enter key", async () => {
@@ -62,7 +66,11 @@ describe("InputArea", () => {
     await user.type(textField, "Test message");
     await user.keyboard("{Enter}");
 
-    expect(mockOnSendMessage).toHaveBeenCalledWith("Test message", []);
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      "Test message",
+      [],
+      undefined,
+    );
   });
 
   it("creates new line with Shift+Enter without sending", async () => {
@@ -100,7 +108,7 @@ describe("InputArea", () => {
     render(<InputArea onSendMessage={mockOnSendMessage} />);
 
     const textField = screen.getByPlaceholderText("Type a message...");
-    const sendButton = screen.getAllByRole("button")[1]; // Send button
+    const sendButton = screen.getAllByRole("button")[2]; // Send button
 
     await user.type(textField, "   ");
 
@@ -115,8 +123,8 @@ describe("InputArea", () => {
 
     expect(textField).toBeDisabled();
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
-    // Camera button should still be visible but send button is replaced with progress
-    expect(screen.getByRole("button")).toBeInTheDocument(); // Camera button
+    // Camera and PageCapture buttons should still be visible but send button is replaced with progress
+    expect(screen.getAllByRole("button")).toHaveLength(2); // Camera and PageCapture buttons
   });
 
   it("works as controlled component", () => {
@@ -164,17 +172,21 @@ describe("InputArea", () => {
       />,
     );
 
-    const sendButton = screen.getAllByRole("button")[1]; // Send button
+    const sendButton = screen.getAllByRole("button")[2]; // Send button
     await user.click(sendButton);
 
-    expect(mockOnSendMessage).toHaveBeenCalledWith("Test message", []);
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      "Test message",
+      [],
+      undefined,
+    );
     expect(mockOnChange).toHaveBeenCalledWith("");
   });
 
   it("disables send button when message is empty", () => {
     render(<InputArea onSendMessage={mockOnSendMessage} />);
 
-    const sendButton = screen.getAllByRole("button")[1]; // Send button
+    const sendButton = screen.getAllByRole("button")[2]; // Send button
     expect(sendButton).toBeDisabled();
   });
 
@@ -183,7 +195,7 @@ describe("InputArea", () => {
     render(<InputArea onSendMessage={mockOnSendMessage} />);
 
     const textField = screen.getByPlaceholderText("Type a message...");
-    const sendButton = screen.getAllByRole("button")[1]; // Send button
+    const sendButton = screen.getAllByRole("button")[2]; // Send button
 
     await user.type(textField, "Message");
 
@@ -219,7 +231,11 @@ describe("InputArea", () => {
     await user.type(textField, "  Message  ");
     await user.keyboard("{Enter}");
 
-    expect(mockOnSendMessage).toHaveBeenCalledWith("  Message  ", []);
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      "  Message  ",
+      [],
+      undefined,
+    );
   });
 
   it("asynchronous send processing works correctly", async () => {
@@ -238,7 +254,11 @@ describe("InputArea", () => {
     await user.keyboard("{Enter}");
 
     // Send is called
-    expect(mockOnSendMessage).toHaveBeenCalledWith("Async message", []);
+    expect(mockOnSendMessage).toHaveBeenCalledWith(
+      "Async message",
+      [],
+      undefined,
+    );
 
     // Text still remains before Promise resolve
     expect(textField).toHaveValue("Async message");
