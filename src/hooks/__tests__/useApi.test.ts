@@ -19,17 +19,19 @@ vi.mock("../useSettings", () => ({
 
 // Mock OpenAI client and related modules
 vi.mock("../../lib/openai/client", () => ({
-  OpenAIClient: vi.fn().mockImplementation(() => ({
-    sendMessage: vi.fn(),
-  })),
+  OpenAIClient: vi.fn().mockImplementation(function () {
+    return { sendMessage: vi.fn() };
+  }),
 }));
 
 vi.mock("../../lib/message-builder", () => ({
-  MessageBuilder: vi.fn().mockImplementation(() => ({
-    buildMessages: vi
-      .fn()
-      .mockReturnValue([{ role: "user", content: "test message" }]),
-  })),
+  MessageBuilder: vi.fn().mockImplementation(function () {
+    return {
+      buildMessages: vi
+        .fn()
+        .mockReturnValue([{ role: "user", content: "test message" }]),
+    };
+  }),
 }));
 
 describe("useApi", () => {
@@ -76,9 +78,9 @@ describe("useApi", () => {
         callbacks.onComplete?.();
       });
 
-    (OpenAIClient as any).mockImplementation(() => ({
-      sendMessage: mockSendMessage,
-    }));
+    (OpenAIClient as any).mockImplementation(function () {
+      return { sendMessage: mockSendMessage };
+    });
 
     const mockBuildMessages = vi.fn().mockReturnValue([
       {
@@ -88,9 +90,9 @@ describe("useApi", () => {
       { role: "user", content: "Hello, OpenAI!" },
     ]);
 
-    (MessageBuilder as any).mockImplementation(() => ({
-      buildMessages: mockBuildMessages,
-    }));
+    (MessageBuilder as any).mockImplementation(function () {
+      return { buildMessages: mockBuildMessages };
+    });
 
     const onMessage = vi.fn();
     const onComplete = vi.fn();
@@ -151,9 +153,9 @@ describe("useApi", () => {
       { role: "user", content: "Hello, OpenAI!" },
     ]);
 
-    (MessageBuilder as any).mockImplementation(() => ({
-      buildMessages: mockBuildMessages,
-    }));
+    (MessageBuilder as any).mockImplementation(function () {
+      return { buildMessages: mockBuildMessages };
+    });
 
     const { result } = renderHook(() => useApi());
 
@@ -183,9 +185,9 @@ describe("useApi", () => {
         callbacks.onError?.(new Error("HTTP 500: Error"));
       });
 
-    (OpenAIClient as any).mockImplementation(() => ({
-      sendMessage: mockSendMessage,
-    }));
+    (OpenAIClient as any).mockImplementation(function () {
+      return { sendMessage: mockSendMessage };
+    });
 
     const { result } = renderHook(() => useApi());
 
@@ -206,7 +208,7 @@ describe("useApi", () => {
   it("should handle thrown errors", async () => {
     const { OpenAIClient } = await import("../../lib/openai/client");
 
-    (OpenAIClient as any).mockImplementation(() => {
+    (OpenAIClient as any).mockImplementation(function () {
       throw new Error("Construction failed");
     });
 
