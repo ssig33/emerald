@@ -15,7 +15,7 @@ export interface OpenAIClientConfig {
 }
 
 const DEFAULT_CONFIG = {
-  model: "gpt-5.2",
+  model: "gpt-5.4",
   baseUrl: "https://api.openai.com/v1/chat/completions",
 };
 
