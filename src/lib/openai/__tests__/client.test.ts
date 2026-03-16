@@ -75,7 +75,7 @@ describe("OpenAIClient", () => {
         "data: [DONE]\n",
       ];
 
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       const onContent = vi.fn();
       const onComplete = vi.fn();
@@ -85,7 +85,7 @@ describe("OpenAIClient", () => {
         onComplete,
       });
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         "https://api.openai.com/v1/chat/completions",
         expect.objectContaining({
           method: "POST",
@@ -97,7 +97,7 @@ describe("OpenAIClient", () => {
       );
 
       const requestBody = JSON.parse(
-        (global.fetch as any).mock.calls[0][1].body,
+        (globalThis.fetch as any).mock.calls[0][1].body,
       );
       expect(requestBody.model).toBe("gpt-5.4");
       expect(requestBody.messages).toEqual(mockMessages);
@@ -116,7 +116,7 @@ describe("OpenAIClient", () => {
     });
 
     it("should handle HTTP errors", async () => {
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse([], 500));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([], 500));
 
       await expect(client.sendMessage(mockMessages, {})).rejects.toThrow(
         ApiError,
@@ -124,7 +124,7 @@ describe("OpenAIClient", () => {
     });
 
     it("should handle network errors", async () => {
-      global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
       await expect(client.sendMessage(mockMessages, {})).rejects.toThrow(
         ApiError,
@@ -132,7 +132,9 @@ describe("OpenAIClient", () => {
     });
 
     it("should handle fetch rejection", async () => {
-      global.fetch = vi.fn().mockRejectedValue(new Error("Connection failed"));
+      globalThis.fetch = vi
+        .fn()
+        .mockRejectedValue(new Error("Connection failed"));
 
       const onError = vi.fn();
 
@@ -148,11 +150,11 @@ describe("OpenAIClient", () => {
       });
 
       const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await customClient.sendMessage(mockMessages, {});
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           body: expect.stringContaining('"model":"gpt-4o"'),
@@ -168,11 +170,11 @@ describe("OpenAIClient", () => {
       });
 
       const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await customClient.sendMessage(mockMessages, {});
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         customBaseUrl,
         expect.any(Object),
       );
@@ -180,12 +182,12 @@ describe("OpenAIClient", () => {
 
     it("should include tools in request", async () => {
       const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await client.sendMessage(mockMessages, {});
 
       const requestBody = JSON.parse(
-        (global.fetch as any).mock.calls[0][1].body,
+        (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
       expect(requestBody.tools).toEqual(
@@ -202,12 +204,12 @@ describe("OpenAIClient", () => {
 
     it("should set stream to true", async () => {
       const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await client.sendMessage(mockMessages, {});
 
       const requestBody = JSON.parse(
-        (global.fetch as any).mock.calls[0][1].body,
+        (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
       expect(requestBody.stream).toBe(true);
@@ -215,12 +217,12 @@ describe("OpenAIClient", () => {
 
     it("should set tool_choice to auto", async () => {
       const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await client.sendMessage(mockMessages, {});
 
       const requestBody = JSON.parse(
-        (global.fetch as any).mock.calls[0][1].body,
+        (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
       expect(requestBody.tool_choice).toBe("auto");
@@ -237,12 +239,12 @@ describe("OpenAIClient", () => {
       const chunks = [
         'data: {"choices":[{"delta":{"content":"I\'m good"}}]}\n',
       ];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await client.sendMessage(multipleMessages, {});
 
       const requestBody = JSON.parse(
-        (global.fetch as any).mock.calls[0][1].body,
+        (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
       expect(requestBody.messages).toEqual(multipleMessages);
@@ -265,12 +267,12 @@ describe("OpenAIClient", () => {
       const chunks = [
         'data: {"choices":[{"delta":{"content":"I see an image"}}]}\n',
       ];
-      global.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
 
       await client.sendMessage(multimodalMessage, {});
 
       const requestBody = JSON.parse(
-        (global.fetch as any).mock.calls[0][1].body,
+        (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
       expect(requestBody.messages).toEqual(multimodalMessage);
