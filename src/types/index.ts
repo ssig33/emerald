@@ -5,11 +5,18 @@ export interface Message {
   timestamp: number;
   status?: "streaming" | "done";
   images?: ImageData[];
+  pageContent?: PageContent;
 }
 
 export interface ImageData {
   dataUrl: string;
   timestamp: number;
+}
+
+export interface PageContent {
+  title: string;
+  url: string;
+  markdown: string;
 }
 
 export interface ContextData {

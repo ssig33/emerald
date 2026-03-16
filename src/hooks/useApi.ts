@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ApiRequest, Message, ImageData } from "../types";
+import { ApiRequest, Message, ImageData, PageContent } from "../types";
 import { useSettings } from "./useSettings";
 import { OpenAIClient } from "../lib/openai/client";
 import { MessageBuilder } from "../lib/message-builder";
@@ -13,7 +13,7 @@ export const useApi = () => {
   const sendMessage = async (
     request: ApiRequest,
     conversationHistory: Message[] = [],
-    contextData?: { images?: ImageData[] },
+    contextData?: { images?: ImageData[]; pageContent?: PageContent },
     onMessage?: (chunk: string) => void,
     onComplete?: () => void,
   ) => {
@@ -37,6 +37,7 @@ export const useApi = () => {
         conversationHistory,
         settings.systemPrompt,
         contextData?.images,
+        contextData?.pageContent,
       );
 
       await client.sendMessage(messages, {
