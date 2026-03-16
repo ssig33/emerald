@@ -17,7 +17,7 @@ import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
 import ThreadList from "../components/ThreadList";
 import ApiKeySettings from "../components/ApiKeySettings";
-import { Message, ImageData } from "../types";
+import { Message, ImageData, PageContent } from "../types";
 import { useApi } from "../hooks/useApi";
 import { useChatThread } from "../hooks/useChatThread";
 
@@ -76,7 +76,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleSendMessage = useCallback(
-    async (messageText: string, images?: ImageData[]) => {
+    async (
+      messageText: string,
+      images?: ImageData[],
+      pageContent?: PageContent,
+    ) => {
       if (!messageText.trim() && (!images || images.length === 0)) return;
 
       // Add user message
@@ -86,6 +90,7 @@ const App: React.FC = () => {
         sender: "user",
         timestamp: Date.now(),
         images: images,
+        pageContent: pageContent,
       };
 
       addMessage(userMessage);
@@ -100,11 +105,13 @@ const App: React.FC = () => {
       addMessage(aiMessage);
       setInputValue(""); // Clear input field
 
-      // API call with images only
-      const contextToSend: { images?: ImageData[] } | undefined =
-        images && images.length > 0
+      const contextToSend:
+        | { images?: ImageData[]; pageContent?: PageContent }
+        | undefined =
+        (images && images.length > 0) || pageContent
           ? {
-              images: images,
+              images: images && images.length > 0 ? images : undefined,
+              pageContent: pageContent || undefined,
             }
           : undefined;
 

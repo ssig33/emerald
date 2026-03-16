@@ -1,4 +1,4 @@
-import { Message, ImageData } from "../types";
+import { Message, ImageData, PageContent } from "../types";
 import { OpenAIMessage, OpenAIMessageContent } from "../types/openai";
 
 export class MessageBuilder {
@@ -7,6 +7,7 @@ export class MessageBuilder {
     conversationHistory: Message[] = [],
     systemPrompt?: string,
     contextImages?: ImageData[],
+    contextPageContent?: PageContent,
   ): OpenAIMessage[] {
     const messages: OpenAIMessage[] = [];
 
@@ -19,7 +20,13 @@ export class MessageBuilder {
 
     messages.push(...this.convertConversationHistory(conversationHistory));
 
-    messages.push(this.buildCurrentMessage(currentMessage, contextImages));
+    messages.push(
+      this.buildCurrentMessage(
+        currentMessage,
+        contextImages,
+        contextPageContent,
+      ),
+    );
 
     return messages;
   }
@@ -43,16 +50,22 @@ export class MessageBuilder {
   private buildCurrentMessage(
     message: string,
     contextImages?: ImageData[],
+    pageContent?: PageContent,
   ): OpenAIMessage {
+    let text = message;
+    if (pageContent) {
+      text = `<page_context>\nTitle: ${pageContent.title}\nURL: ${pageContent.url}\n\n${pageContent.markdown}\n</page_context>\n\n${message}`;
+    }
+
     if (contextImages && contextImages.length > 0) {
       return {
         role: "user",
-        content: this.buildMultimodalContent(message, contextImages),
+        content: this.buildMultimodalContent(text, contextImages),
       };
     } else {
       return {
         role: "user",
-        content: message,
+        content: text,
       };
     }
   }

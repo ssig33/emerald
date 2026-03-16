@@ -8,14 +8,26 @@ import {
   CircularProgress,
   Chip,
   Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
+import ArticleIcon from "@mui/icons-material/Article";
 import ImageSelector from "./ImageSelector";
-import { ImageData } from "../types";
+import { ImageData, PageContent } from "../types";
+import { extractPageContent } from "../lib/page-extractor";
 
 interface InputAreaProps {
-  onSendMessage: (message: string, images?: ImageData[]) => Promise<void>;
+  onSendMessage: (
+    message: string,
+    images?: ImageData[],
+    pageContent?: PageContent,
+  ) => Promise<void>;
   disabled?: boolean;
   value?: string;
   onChange?: (value: string) => void;
@@ -31,6 +43,9 @@ const InputArea: React.FC<InputAreaProps> = ({
 }) => {
   const [message, setMessage] = useState("");
   const [images, setImages] = useState<ImageData[]>([]);
+  const [pageContent, setPageContent] = useState<PageContent | null>(null);
+  const [isCapturingPage, setIsCapturingPage] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const currentValue = value !== undefined ? value : message;
   const handleValueChange = (newValue: string) => {
@@ -43,13 +58,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 
   const handleSend = async () => {
     if (currentValue.trim() || images.length > 0) {
-      await onSendMessage(currentValue, images);
+      await onSendMessage(currentValue, images, pageContent || undefined);
       if (onChange) {
         onChange("");
       } else {
         setMessage("");
       }
       setImages([]);
+      setPageContent(null);
     }
   };
 
@@ -62,6 +78,18 @@ const InputArea: React.FC<InputAreaProps> = ({
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handlePageCapture = async () => {
+    setIsCapturingPage(true);
+    try {
+      const content = await extractPageContent();
+      setPageContent(content);
+    } catch (error) {
+      console.error("Failed to capture page:", error);
+    } finally {
+      setIsCapturingPage(false);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -71,10 +99,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 
   const canSend = (currentValue.trim() || images.length > 0) && !disabled;
 
+  const truncateTitle = (title: string, maxLen = 30) => {
+    if (title.length <= maxLen) return title;
+    return title.substring(0, maxLen) + "...";
+  };
+
   return (
     <Paper sx={{ p: 1, flexShrink: 0 }}>
-      {/* Image previews */}
-      {images.length > 0 && (
+      {(images.length > 0 || pageContent) && (
         <Box sx={{ mb: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
           {images.map((image, index) => (
             <Chip
@@ -89,6 +121,18 @@ const InputArea: React.FC<InputAreaProps> = ({
               size="small"
             />
           ))}
+          {pageContent && (
+            <Chip
+              icon={<ArticleIcon />}
+              label={truncateTitle(pageContent.title || pageContent.url)}
+              onClick={() => setDialogOpen(true)}
+              onDelete={() => setPageContent(null)}
+              deleteIcon={<CloseIcon />}
+              variant="outlined"
+              size="small"
+              color="primary"
+            />
+          )}
         </Box>
       )}
       <TextField
@@ -106,6 +150,17 @@ const InputArea: React.FC<InputAreaProps> = ({
           startAdornment: (
             <InputAdornment position="start">
               <ImageSelector onImageCapture={handleImageCapture} />
+              {isCapturingPage ? (
+                <CircularProgress size={20} />
+              ) : (
+                <IconButton
+                  onClick={handlePageCapture}
+                  size="small"
+                  title="Capture page content"
+                >
+                  <ArticleIcon />
+                </IconButton>
+              )}
             </InputAdornment>
           ),
           endAdornment: (
@@ -125,6 +180,35 @@ const InputArea: React.FC<InputAreaProps> = ({
           ),
         }}
       />
+
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>{pageContent?.title}</DialogTitle>
+        <DialogContent>
+          <Typography variant="caption" color="text.secondary" gutterBottom>
+            {pageContent?.url}
+          </Typography>
+          <Box
+            sx={{
+              mt: 1,
+              maxHeight: 400,
+              overflow: "auto",
+              whiteSpace: "pre-wrap",
+              fontFamily: "monospace",
+              fontSize: "0.85rem",
+            }}
+          >
+            {pageContent?.markdown}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
