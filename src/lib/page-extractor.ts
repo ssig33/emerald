@@ -2,6 +2,8 @@ import Defuddle from "defuddle";
 import TurndownService from "turndown";
 import { PageContent } from "../types";
 
+const HTML_DEFAULT_HOSTNAMES = ["app.hey.com"];
+
 export async function extractPageContent(): Promise<PageContent> {
   const tabs = await chrome.tabs.query({
     active: true,
@@ -38,6 +40,8 @@ export async function extractPageContent(): Promise<PageContent> {
     url: info.url || "",
     markdown,
     html: result.text,
-    contentType: "markdown",
+    contentType: HTML_DEFAULT_HOSTNAMES.includes(new URL(info.url).hostname)
+      ? "html"
+      : "markdown",
   };
 }
