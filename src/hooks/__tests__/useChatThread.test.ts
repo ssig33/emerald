@@ -7,7 +7,7 @@ import { Message } from "../../types";
 const mockCrypto = {
   randomUUID: vi.fn().mockReturnValue("test-uuid-123"),
 };
-Object.defineProperty(global, "crypto", {
+Object.defineProperty(globalThis, "crypto", {
   value: mockCrypto,
   writable: true,
 });

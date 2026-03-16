@@ -8,7 +8,7 @@ export const useStorage = <T>(key: string, defaultValue: T) => {
       try {
         const result = await chrome.storage.local.get(key);
         if (result[key] !== undefined) {
-          setValue(result[key]);
+          setValue(result[key] as T);
         }
       } catch (error) {
         console.error("Error loading from storage:", error);

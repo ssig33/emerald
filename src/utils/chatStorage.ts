@@ -4,7 +4,7 @@ export const chatStorage = {
   async getThreadList(): Promise<ChatHistoryItem[]> {
     try {
       const result = await chrome.storage.local.get("system/history");
-      return result["system/history"] || [];
+      return (result["system/history"] as ChatHistoryItem[] | undefined) || [];
     } catch (error) {
       console.error("Failed to get thread list:", error);
       return [];
@@ -18,7 +18,11 @@ export const chatStorage = {
   } | null> {
     try {
       const result = await chrome.storage.local.get(`chat_${threadId}`);
-      return result[`chat_${threadId}`] || null;
+      return (
+        (result[`chat_${threadId}`] as
+          | { messages: Message[]; title?: string; lastUpdated: number }
+          | undefined) || null
+      );
     } catch (error) {
       console.error("Failed to get chat history:", error);
       return null;
@@ -47,7 +51,9 @@ export const chatStorage = {
       await chrome.storage.local.set({ [`chat_${threadId}`]: chatData });
 
       const historyResult = await chrome.storage.local.get("system/history");
-      const history: ChatHistoryItem[] = historyResult["system/history"] || [];
+      const history: ChatHistoryItem[] =
+        (historyResult["system/history"] as ChatHistoryItem[] | undefined) ||
+        [];
       const existingIndex = history.findIndex(
         (h: ChatHistoryItem) => h.threadId === threadId,
       );
