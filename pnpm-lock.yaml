@@ -24,8 +24,8 @@ importers:
         specifier: ^0.1.37
         version: 0.1.38
       defuddle:
-        specifier: ^0.14.0
-        version: 0.14.0
+        specifier: ^0.15.0
+        version: 0.15.0
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -964,6 +964,7 @@ packages:
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   adm-zip@0.5.16:
     resolution: {integrity: sha512-TGw5yVi4saajsSEgz25grObGHEUaDrniwvA2qwSC060KfqGPdglhvPMA2lPIoxs3PQIItj2iag35fONcQqgUaQ==}
@@ -1218,8 +1219,8 @@ packages:
     resolution: {integrity: sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA==}
     engines: {node: '>=4.0.0'}
 
-  defuddle@0.14.0:
-    resolution: {integrity: sha512-btavZGd1WgiVqrVM62WGRXMUi/aU7ckTZiq0xXWLZMHvzIqNZjwIFQEDRx8MarD7fIgsB90NXZ9xHJkKtapt2Q==}
+  defuddle@0.15.0:
+    resolution: {integrity: sha512-ZIouJe2TcVMZDTpU4G0UBA+kN101dBQ5fxCsamq/zgH4etbRZTd86fcWbYrnus28SFBpMyHWCbL23P1rkp4XUw==}
     hasBin: true
 
   dequal@2.0.3:
@@ -3579,7 +3580,7 @@ snapshots:
 
   deep-extend@0.6.0: {}
 
-  defuddle@0.14.0:
+  defuddle@0.15.0:
     dependencies:
       commander: 12.1.0
     optionalDependencies:
