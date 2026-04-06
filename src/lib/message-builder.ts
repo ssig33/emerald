@@ -33,15 +33,24 @@ export class MessageBuilder {
 
   private convertConversationHistory(history: Message[]): OpenAIMessage[] {
     return history.map((msg): OpenAIMessage => {
+      let text = msg.content;
+      if (msg.sender === "user" && msg.pageContent) {
+        const content =
+          msg.pageContent.contentType === "html"
+            ? msg.pageContent.html
+            : msg.pageContent.markdown;
+        text = `<page_context>\nTitle: ${msg.pageContent.title}\nURL: ${msg.pageContent.url}\n\n${content}\n</page_context>\n\n${msg.content}`;
+      }
+
       if (msg.sender === "user" && msg.images && msg.images.length > 0) {
         return {
           role: "user",
-          content: this.buildMultimodalContent(msg.content, msg.images),
+          content: this.buildMultimodalContent(text, msg.images),
         };
       } else {
         return {
           role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content,
+          content: text,
         };
       }
     });
