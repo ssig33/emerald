@@ -316,6 +316,95 @@ describe("MessageBuilder", () => {
       ]);
     });
 
+    it("should include page context with URL in conversation history", () => {
+      const history: Message[] = [
+        {
+          id: "1",
+          content: "Summarize this",
+          sender: "user",
+          timestamp: 123456,
+          pageContent: {
+            title: "Test Page",
+            url: "https://example.com/article",
+            markdown: "# Article",
+            html: "<h1>Article</h1>",
+            contentType: "markdown",
+          },
+        },
+        {
+          id: "2",
+          content: "Here is a summary...",
+          sender: "ai",
+          timestamp: 123457,
+        },
+      ];
+
+      const result = messageBuilder.buildMessages("Tell me more", history);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: `<page_context>\nTitle: Test Page\nURL: https://example.com/article\n\n# Article\n</page_context>\n\nSummarize this`,
+        },
+        {
+          role: "assistant",
+          content: "Here is a summary...",
+        },
+        {
+          role: "user",
+          content: "Tell me more",
+        },
+      ]);
+    });
+
+    it("should include page context and images together in conversation history", () => {
+      const history: Message[] = [
+        {
+          id: "1",
+          content: "Look at this page",
+          sender: "user",
+          timestamp: 123456,
+          images: [
+            {
+              dataUrl: "data:image/png;base64,abc123",
+              timestamp: 123456,
+            },
+          ],
+          pageContent: {
+            title: "Test Page",
+            url: "https://example.com",
+            markdown: "# Hello",
+            html: "<h1>Hello</h1>",
+            contentType: "markdown",
+          },
+        },
+      ];
+
+      const result = messageBuilder.buildMessages("Follow up", history);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `<page_context>\nTitle: Test Page\nURL: https://example.com\n\n# Hello\n</page_context>\n\nLook at this page`,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: "data:image/png;base64,abc123",
+              },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: "Follow up",
+        },
+      ]);
+    });
+
     it("should handle complete scenario with all elements", () => {
       const history: Message[] = [
         {
