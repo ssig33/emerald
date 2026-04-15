@@ -24,8 +24,8 @@ importers:
         specifier: ^0.1.37
         version: 0.1.40
       defuddle:
-        specifier: ^0.16.0
-        version: 0.16.0
+        specifier: ^0.17.0
+        version: 0.17.0
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -34,7 +34,7 @@ importers:
         version: 16.4.0
       prettier:
         specifier: ^3.8.1
-        version: 3.8.2
+        version: 3.8.3
       react:
         specifier: ^19.2.4
         version: 19.2.5
@@ -1084,8 +1084,8 @@ packages:
     resolution: {integrity: sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA==}
     engines: {node: '>=4.0.0'}
 
-  defuddle@0.16.0:
-    resolution: {integrity: sha512-8Y87EivlIqzxFsULUQLnch29oPeBxMk3yvX2W+8HeZdgxHXeoQINTZD24jfRCQE7n5ui08WWHVipr9xh5MI2TQ==}
+  defuddle@0.17.0:
+    resolution: {integrity: sha512-rjRb9kxgrJLFhFJjXTSAitbmmSyvjEqGCi5JiyM6ImOf4leC/O+f7TPVPAymk/gnENFTrn9j7T/LTfW9IVwiLw==}
     hasBin: true
 
   dequal@2.0.3:
@@ -1857,8 +1857,8 @@ packages:
     resolution: {integrity: sha512-7a70Nsot+EMX9fFU3064K/kdHWZqGVY+BADLyXc8Dfv+mTLLVl6JzJpPaCZ2kQL9gIJvKXSLMHhqdRRjwQeFtw==}
     engines: {node: ^10 || ^12 || >=14}
 
-  prettier@3.8.2:
-    resolution: {integrity: sha512-8c3mgTe0ASwWAJK+78dpviD+A8EqhndQPUBpNUIPt6+xWlIigCwfN01lWr9MAede4uqXGTEKeQWTvzb3vjia0Q==}
+  prettier@3.8.3:
+    resolution: {integrity: sha512-7igPTM53cGHMW8xWuVTydi2KO233VFiTNyF5hLJqpilHfmn8C8gPf+PS7dUT64YcXFbiMGZxS9pCSxL/Dxm/Jw==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -3341,7 +3341,7 @@ snapshots:
 
   deep-extend@0.6.0: {}
 
-  defuddle@0.16.0:
+  defuddle@0.17.0:
     dependencies:
       commander: 12.1.0
     optionalDependencies:
@@ -4339,7 +4339,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier@3.8.2: {}
+  prettier@3.8.3: {}
 
   pretty-format@27.5.1:
     dependencies:
