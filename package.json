@@ -6,7 +6,10 @@
   "license": "WTFPL",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "dev:firefox": "TARGET_BROWSER=firefox vite",
+    "build": "pnpm build:chrome && pnpm build:firefox",
+    "build:chrome": "tsc && TARGET_BROWSER=chrome vite build",
+    "build:firefox": "tsc && TARGET_BROWSER=firefox vite build",
     "prepare": "husky",
     "test": "vitest"
   },

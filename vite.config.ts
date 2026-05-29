@@ -13,11 +13,17 @@ function generateManifest() {
   };
 }
 
+const target = process.env.TARGET_BROWSER || "chrome";
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    outDir: `dist/${target}`,
+  },
   plugins: [
     react(),
     webExtension({
+      browser: target,
       manifest: generateManifest,
       additionalInputs: [
         "src/sidepanel/index.html",
