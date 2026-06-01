@@ -6,7 +6,10 @@
   "license": "WTFPL",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "dev:firefox": "TARGET_BROWSER=firefox vite",
+    "build": "pnpm build:chrome && pnpm build:firefox",
+    "build:chrome": "tsc && TARGET_BROWSER=chrome vite build",
+    "build:firefox": "tsc && TARGET_BROWSER=firefox vite build",
     "prepare": "husky",
     "test": "vitest"
   },
@@ -16,7 +19,7 @@
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
     "@types/chrome": "^0.1.37",
-    "defuddle": "^0.14.0",
+    "defuddle": "^0.18.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
@@ -44,5 +47,5 @@
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
   },
-  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
+  "packageManager": "pnpm@10.34.1+sha512.b58fbde6dca66a929538021581f648b4570b6ca19b18e7cbd7f2c07a7b24454155388dacdf08f2af3678e88a6d1fe04f9d609df24bf51735a060ea041b374ab7"
 }
