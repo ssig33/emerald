@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
+import {
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+  IconButton,
+} from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { ChatHistoryItem } from "../types";
 import { chatStorage } from "../utils/chatStorage";
 
@@ -18,6 +26,11 @@ const ThreadList: React.FC<ThreadListProps> = ({ onThreadSelect, onClose }) => {
     };
     loadThreads();
   }, []);
+
+  const handleDelete = async (threadId: string) => {
+    await chatStorage.deleteChatHistory(threadId);
+    setThreads((prev) => prev.filter((t) => t.threadId !== threadId));
+  };
 
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("ja-JP", {
@@ -44,6 +57,18 @@ const ThreadList: React.FC<ThreadListProps> = ({ onThreadSelect, onClose }) => {
               onClose?.();
             }}
             sx={{ cursor: "pointer" }}
+            secondaryAction={
+              <IconButton
+                edge="end"
+                aria-label="delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(thread.threadId);
+                }}
+              >
+                <DeleteIcon />
+              </IconButton>
+            }
           >
             <ListItemText
               primary={thread.title || "Untitled"}
