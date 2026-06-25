@@ -13,6 +13,7 @@ import { ChatHistoryItem } from "../../types";
 vi.mock("../../utils/chatStorage", () => ({
   chatStorage: {
     getThreadList: vi.fn(),
+    deleteChatHistory: vi.fn(),
   },
 }));
 
@@ -44,6 +45,7 @@ describe("ThreadList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockChatStorage.getThreadList.mockResolvedValue(mockThreads);
+    mockChatStorage.deleteChatHistory.mockResolvedValue(undefined);
   });
 
   it("renders basic components correctly", async () => {
@@ -195,6 +197,39 @@ describe("ThreadList", () => {
       const paperElement = screen.getByRole("list").closest("div");
       expect(paperElement).toBeInTheDocument();
     });
+  });
+
+  it("deletes a thread when the delete button is clicked", async () => {
+    render(<ThreadList onThreadSelect={mockOnThreadSelect} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Thread 1")).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByLabelText("delete");
+    fireEvent.click(deleteButtons[0]);
+
+    expect(mockChatStorage.deleteChatHistory).toHaveBeenCalledWith("thread-1");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Test Thread 1")).not.toBeInTheDocument();
+    });
+
+    // Other threads remain
+    expect(screen.getByText("Test Thread 2")).toBeInTheDocument();
+  });
+
+  it("does not select the thread when the delete button is clicked", async () => {
+    render(<ThreadList onThreadSelect={mockOnThreadSelect} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Thread 1")).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByLabelText("delete");
+    fireEvent.click(deleteButtons[0]);
+
+    expect(mockOnThreadSelect).not.toHaveBeenCalled();
   });
 
   it("displays titles with special characters correctly", async () => {

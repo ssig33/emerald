@@ -29,6 +29,24 @@ export const chatStorage = {
     }
   },
 
+  async deleteChatHistory(threadId: string): Promise<void> {
+    try {
+      await chrome.storage.local.remove(`chat_${threadId}`);
+
+      const historyResult = await chrome.storage.local.get("system/history");
+      const history: ChatHistoryItem[] =
+        (historyResult["system/history"] as ChatHistoryItem[] | undefined) ||
+        [];
+      const filtered = history.filter(
+        (h: ChatHistoryItem) => h.threadId !== threadId,
+      );
+
+      await chrome.storage.local.set({ "system/history": filtered });
+    } catch (error) {
+      console.error("Failed to delete chat history:", error);
+    }
+  },
+
   async saveChatHistory(threadId: string, messages: Message[]): Promise<void> {
     try {
       let title = "";
