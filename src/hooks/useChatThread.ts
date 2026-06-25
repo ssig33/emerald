@@ -45,9 +45,16 @@ export const useChatThread = () => {
           };
         }
       }
-      chatStorage.saveChatHistory(getThreadId(), newMessages);
       return newMessages;
     });
+  };
+
+  const saveThread = async (): Promise<boolean> => {
+    if (messages.length === 0) {
+      return false;
+    }
+    await chatStorage.saveChatHistory(getThreadId(), messages);
+    return true;
   };
 
   const loadChatHistory = async (id: string) => {
@@ -68,6 +75,7 @@ export const useChatThread = () => {
     addMessage,
     appendToLastMessage,
     completeLastMessage,
+    saveThread,
     loadChatHistory,
   };
 };

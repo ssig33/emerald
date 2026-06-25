@@ -10,9 +10,11 @@ import {
   Drawer,
   IconButton,
   Divider,
+  Snackbar,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import AddIcon from "@mui/icons-material/Add";
+import SaveIcon from "@mui/icons-material/Save";
 import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
 import ThreadList from "../components/ThreadList";
@@ -55,14 +57,21 @@ const theme = createTheme({
 const App: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>("");
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [saveMessage, setSaveMessage] = useState<string>("");
   const {
     messages,
     threadId,
     addMessage,
     appendToLastMessage,
     completeLastMessage,
+    saveThread,
     loadChatHistory,
   } = useChatThread();
+
+  const handleSaveThread = useCallback(async () => {
+    const saved = await saveThread();
+    setSaveMessage(saved ? "履歴を保存しました" : "保存する会話がありません");
+  }, [saveThread]);
 
   const { sendMessage, error } = useApi();
 
@@ -160,6 +169,14 @@ const App: React.FC = () => {
             </Typography>
             <IconButton
               color="inherit"
+              aria-label="save conversation"
+              onClick={handleSaveThread}
+              disabled={messages.length === 0}
+            >
+              <SaveIcon />
+            </IconButton>
+            <IconButton
+              color="inherit"
               aria-label="new conversation"
               onClick={() => window.location.reload()}
             >
@@ -204,6 +221,13 @@ const App: React.FC = () => {
             onImageCapture={handleImageCapture}
           />
         </Container>
+        <Snackbar
+          open={saveMessage !== ""}
+          autoHideDuration={2000}
+          onClose={() => setSaveMessage("")}
+          message={saveMessage}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        />
       </Box>
     </ThemeProvider>
   );
