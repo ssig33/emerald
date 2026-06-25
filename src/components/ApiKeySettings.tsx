@@ -15,6 +15,8 @@ const ApiKeySettings: React.FC = () => {
   const { settings, saveSettings } = useSettings();
   const [apiKey, setApiKey] = useState(settings.openaiApiKey);
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
+  const [baseUrl, setBaseUrl] = useState(settings.baseUrl);
+  const [model, setModel] = useState(settings.model);
   const [showApiKey, setShowApiKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
@@ -23,7 +25,12 @@ const ApiKeySettings: React.FC = () => {
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
-      await saveSettings({ openaiApiKey: apiKey, systemPrompt });
+      await saveSettings({
+        openaiApiKey: apiKey,
+        systemPrompt,
+        baseUrl,
+        model,
+      });
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (error) {
@@ -34,29 +41,25 @@ const ApiKeySettings: React.FC = () => {
   };
 
   const isValidApiKey = (key: string) => {
-    return key.startsWith("sk-") && key.length > 20;
+    return key.length > 0;
   };
 
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        OpenAI Settings
+        API Settings
       </Typography>
 
       <TextField
         fullWidth
-        label="OpenAI API Key"
+        label="API Key"
         type={showApiKey ? "text" : "password"}
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
         placeholder="sk-..."
         margin="normal"
         error={apiKey.length > 0 && !isValidApiKey(apiKey)}
-        helperText={
-          apiKey.length > 0 && !isValidApiKey(apiKey)
-            ? "API key should start with 'sk-' and be at least 20 characters long"
-            : "Get your API key from https://platform.openai.com/api-keys"
-        }
+        helperText="API key for OpenAI, OpenRouter, or any compatible provider"
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
@@ -70,6 +73,26 @@ const ApiKeySettings: React.FC = () => {
             </InputAdornment>
           ),
         }}
+      />
+
+      <TextField
+        fullWidth
+        label="Base URL"
+        value={baseUrl}
+        onChange={(e) => setBaseUrl(e.target.value)}
+        placeholder="https://api.openai.com/v1/chat/completions"
+        margin="normal"
+        helperText="Chat Completions endpoint. e.g. OpenRouter: https://openrouter.ai/api/v1/chat/completions"
+      />
+
+      <TextField
+        fullWidth
+        label="Model"
+        value={model}
+        onChange={(e) => setModel(e.target.value)}
+        placeholder="gpt-5.4"
+        margin="normal"
+        helperText="Model ID. e.g. OpenRouter: anthropic/claude-opus-4.1"
       />
 
       <TextField
@@ -92,6 +115,8 @@ const ApiKeySettings: React.FC = () => {
           !apiKey ||
           !isValidApiKey(apiKey) ||
           !systemPrompt.trim() ||
+          !baseUrl.trim() ||
+          !model.trim() ||
           saveStatus === "saving"
         }
         sx={{ mt: 2 }}
