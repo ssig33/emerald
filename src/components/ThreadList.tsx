@@ -29,31 +29,29 @@ const ThreadList: React.FC<ThreadListProps> = ({ onThreadSelect, onClose }) => {
   };
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ p: 2, flexShrink: 0 }}>
+    <Box>
+      <Box sx={{ p: 2 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Thread List
         </Typography>
       </Box>
-      <Box sx={{ flex: 1, overflow: "auto" }}>
-        <List>
-          {threads.map((thread) => (
-            <ListItem
-              key={thread.threadId}
-              onClick={() => {
-                onThreadSelect(thread.threadId);
-                onClose?.();
-              }}
-              sx={{ cursor: "pointer" }}
-            >
-              <ListItemText
-                primary={thread.title || "Untitled"}
-                secondary={formatTime(thread.lastUpdated)}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Box>
+      <List>
+        {threads.map((thread) => (
+          <ListItem
+            key={thread.threadId}
+            onClick={() => {
+              onThreadSelect(thread.threadId);
+              onClose?.();
+            }}
+            sx={{ cursor: "pointer" }}
+          >
+            <ListItemText
+              primary={thread.title || "Untitled"}
+              secondary={formatTime(thread.lastUpdated)}
+            />
+          </ListItem>
+        ))}
+      </List>
     </Box>
   );
 };
