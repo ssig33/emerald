@@ -3,12 +3,16 @@ import { useState, useEffect } from "react";
 interface Settings {
   openaiApiKey: string;
   systemPrompt: string;
+  baseUrl: string;
+  model: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   openaiApiKey: "",
   systemPrompt:
     "You are a helpful AI assistant integrated into a Chrome extension called Emerald. You can help users with various tasks while they browse the web. When users provide page content, use it to give more contextual and relevant responses. Be concise but helpful, and adapt your responses to the context of what the user is doing.",
+  baseUrl: "https://api.openai.com/v1/chat/completions",
+  model: "gpt-5.4",
 };
 
 export const useSettings = () => {
