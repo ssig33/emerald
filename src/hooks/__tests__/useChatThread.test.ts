@@ -51,6 +51,7 @@ describe("useChatThread", () => {
     expect(typeof result.current.addMessage).toBe("function");
     expect(typeof result.current.appendToLastMessage).toBe("function");
     expect(typeof result.current.completeLastMessage).toBe("function");
+    expect(typeof result.current.saveThread).toBe("function");
     expect(typeof result.current.loadChatHistory).toBe("function");
   });
 
@@ -134,10 +135,7 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages[0].status).toBe("done");
-    expect(chatStorage.saveChatHistory).toHaveBeenCalledWith(
-      "test-uuid-123",
-      result.current.messages,
-    );
+    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
   });
 
   it("completeLastMessage does not change state for non-AI messages", async () => {
@@ -236,10 +234,38 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages).toHaveLength(0);
+    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
+  });
+
+  it("saveThread persists current messages explicitly", async () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockMessage);
+    });
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.saveThread();
+    });
+
+    expect(saved).toBe(true);
     expect(chatStorage.saveChatHistory).toHaveBeenCalledWith(
       "test-uuid-123",
-      [],
+      result.current.messages,
     );
+  });
+
+  it("saveThread does nothing when there are no messages", async () => {
+    const { result } = renderHook(() => useChatThread());
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.saveThread();
+    });
+
+    expect(saved).toBe(false);
+    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
   });
 
   it("can call appendToLastMessage multiple times", () => {
