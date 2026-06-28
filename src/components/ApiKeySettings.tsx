@@ -17,7 +17,9 @@ const ApiKeySettings: React.FC = () => {
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
   const [baseUrl, setBaseUrl] = useState(settings.baseUrl);
   const [model, setModel] = useState(settings.model);
+  const [braveApiKey, setBraveApiKey] = useState(settings.braveApiKey);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showBraveApiKey, setShowBraveApiKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
   >("idle");
@@ -30,6 +32,7 @@ const ApiKeySettings: React.FC = () => {
         systemPrompt,
         baseUrl,
         model,
+        braveApiKey,
       });
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2000);
@@ -93,6 +96,30 @@ const ApiKeySettings: React.FC = () => {
         placeholder="gpt-5.4"
         margin="normal"
         helperText="Model ID. e.g. OpenRouter: anthropic/claude-opus-4.1"
+      />
+
+      <TextField
+        fullWidth
+        label="Brave Search API Key (optional)"
+        type={showBraveApiKey ? "text" : "password"}
+        value={braveApiKey}
+        onChange={(e) => setBraveApiKey(e.target.value)}
+        placeholder="BSA..."
+        margin="normal"
+        helperText="Set to enable web search. The AI looks things up when needed and cites source URLs."
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                aria-label="toggle brave api key visibility"
+                onClick={() => setShowBraveApiKey(!showBraveApiKey)}
+                edge="end"
+              >
+                {showBraveApiKey ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
       />
 
       <TextField

@@ -31,6 +31,7 @@ export const useApi = () => {
         apiKey: settings.openaiApiKey,
         baseUrl: settings.baseUrl,
         model: settings.model,
+        braveApiKey: settings.braveApiKey,
       });
 
       const messageBuilder = new MessageBuilder();
