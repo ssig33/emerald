@@ -6,17 +6,19 @@ import {
   ApiError,
 } from "../../types/openai";
 import { StreamProcessor, StreamCallbacks } from "./stream-processor";
-import { ToolExecutor, AVAILABLE_TOOLS } from "../tools/executor";
+import { ToolExecutor, getAvailableTools } from "../tools/executor";
 
 export interface OpenAIClientConfig {
   apiKey: string;
   model?: string;
   baseUrl?: string;
+  braveApiKey?: string;
 }
 
 const DEFAULT_CONFIG = {
   model: "gpt-5.4",
   baseUrl: "https://api.openai.com/v1/chat/completions",
+  braveApiKey: "",
 };
 
 export class OpenAIClient {
@@ -27,7 +29,9 @@ export class OpenAIClient {
   constructor(config: OpenAIClientConfig) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.streamProcessor = new StreamProcessor();
-    this.toolExecutor = new ToolExecutor();
+    this.toolExecutor = new ToolExecutor({
+      braveApiKey: this.config.braveApiKey,
+    });
   }
 
   async sendMessage(
@@ -64,7 +68,7 @@ export class OpenAIClient {
     return {
       model: this.config.model,
       messages,
-      tools: AVAILABLE_TOOLS,
+      tools: getAvailableTools({ braveApiKey: this.config.braveApiKey }),
       tool_choice: "auto",
       stream: true,
     };
