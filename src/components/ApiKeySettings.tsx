@@ -190,9 +190,8 @@ const ApiKeySettings: React.FC = () => {
             variant="outlined"
             onClick={handleSaveProfile}
             disabled={!profileName.trim() || !baseUrl.trim() || !model.trim()}
-            sx={{ whiteSpace: "nowrap" }}
           >
-            Save Profile
+            Save
           </Button>
         </Stack>
 
