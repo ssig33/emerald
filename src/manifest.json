@@ -11,9 +11,6 @@
     "128": "icon/128.png"
   },
   "{{chrome}}.action": {},
-  "{{chrome}}.side_panel": {
-    "default_path": "src/sidepanel/index.html"
-  },
   "{{firefox}}.sidebar_action": {
     "default_panel": "src/sidepanel/index.html",
     "default_title": "Emerald",
