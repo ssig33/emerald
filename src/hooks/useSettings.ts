@@ -16,6 +16,14 @@ interface Settings {
   s3PublicBaseUrl: string;
 }
 
+interface Profile {
+  id: string;
+  name: string;
+  baseUrl: string;
+  openaiApiKey: string;
+  model: string;
+}
+
 const DEFAULT_SETTINGS: Settings = {
   openaiApiKey: "",
   systemPrompt:
@@ -33,10 +41,13 @@ const DEFAULT_SETTINGS: Settings = {
   s3PublicBaseUrl: "",
 };
 
-export type { Settings };
+export type { Settings, Profile };
+
+const PROFILES_KEY = "llmProfiles";
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,9 +56,12 @@ export const useSettings = () => {
 
   const loadSettings = async () => {
     try {
-      const result = await chrome.storage.local.get("settings");
+      const result = await chrome.storage.local.get(["settings", PROFILES_KEY]);
       if (result.settings) {
         setSettings({ ...DEFAULT_SETTINGS, ...result.settings });
+      }
+      if (Array.isArray(result[PROFILES_KEY])) {
+        setProfiles(result[PROFILES_KEY]);
       }
     } catch (error) {
       console.error("Failed to load settings:", error);
@@ -75,11 +89,52 @@ export const useSettings = () => {
     await saveSettings({ systemPrompt });
   };
 
+  const persistProfiles = async (newProfiles: Profile[]) => {
+    try {
+      await chrome.storage.local.set({ [PROFILES_KEY]: newProfiles });
+      setProfiles(newProfiles);
+    } catch (error) {
+      console.error("Failed to save profiles:", error);
+    }
+  };
+
+  const saveProfile = async (
+    name: string,
+    config: Pick<Settings, "baseUrl" | "openaiApiKey" | "model">,
+  ) => {
+    const profile: Profile = {
+      id: crypto.randomUUID(),
+      name,
+      baseUrl: config.baseUrl,
+      openaiApiKey: config.openaiApiKey,
+      model: config.model,
+    };
+    await persistProfiles([...profiles, profile]);
+  };
+
+  const applyProfile = async (id: string) => {
+    const profile = profiles.find((p) => p.id === id);
+    if (!profile) return;
+    await saveSettings({
+      baseUrl: profile.baseUrl,
+      openaiApiKey: profile.openaiApiKey,
+      model: profile.model,
+    });
+  };
+
+  const deleteProfile = async (id: string) => {
+    await persistProfiles(profiles.filter((p) => p.id !== id));
+  };
+
   return {
     settings,
+    profiles,
     loading,
     updateApiKey,
     updateSystemPrompt,
     saveSettings,
+    saveProfile,
+    applyProfile,
+    deleteProfile,
   };
 };
