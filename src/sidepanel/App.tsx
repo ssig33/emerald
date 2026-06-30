@@ -9,15 +9,21 @@ import {
   Container,
   Drawer,
   IconButton,
+  Snackbar,
+  Alert,
+  Link,
+  CircularProgress,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import AddIcon from "@mui/icons-material/Add";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
 import ApiKeySettings from "../components/ApiKeySettings";
-import { Message, ImageData, PageContent } from "../types";
+import { Message, ImageData, PageContent, ToolInteraction } from "../types";
 import { useApi } from "../hooks/useApi";
 import { useChatThread } from "../hooks/useChatThread";
+import { useConversationExport } from "../hooks/useConversationExport";
 
 const theme = createTheme({
   palette: {
@@ -67,6 +73,17 @@ const App: React.FC = () => {
   }, [clearCurrentGroupChat]);
 
   const { sendMessage, error } = useApi();
+  const {
+    status: exportStatus,
+    resultUrl,
+    error: exportError,
+    exportConversation,
+    reset: resetExport,
+  } = useConversationExport();
+
+  const handleSaveConversation = useCallback(async () => {
+    await exportConversation(messages.filter((m) => m.status !== "streaming"));
+  }, [exportConversation, messages]);
 
   const generateMessageId = (): string => {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -107,6 +124,8 @@ const App: React.FC = () => {
       addMessage(aiMessage);
       setInputValue(""); // Clear input field
 
+      const collectedInteractions: ToolInteraction[] = [];
+
       const contextToSend:
         { images?: ImageData[]; pageContent?: PageContent } | undefined =
         (images && images.length > 0) || pageContent
@@ -128,7 +147,11 @@ const App: React.FC = () => {
         },
         // onComplete: response completed
         () => {
-          completeLastMessage();
+          completeLastMessage(collectedInteractions);
+        },
+        // onToolActivity: capture hidden execution context
+        (interactions: ToolInteraction[]) => {
+          collectedInteractions.push(...interactions);
         },
       );
     },
@@ -158,6 +181,18 @@ const App: React.FC = () => {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Emerald
             </Typography>
+            <IconButton
+              color="inherit"
+              aria-label="save conversation"
+              onClick={handleSaveConversation}
+              disabled={exportStatus === "uploading" || messages.length === 0}
+            >
+              {exportStatus === "uploading" ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <CloudUploadIcon />
+              )}
+            </IconButton>
             <IconButton
               color="inherit"
               aria-label="new conversation"
@@ -199,6 +234,37 @@ const App: React.FC = () => {
             onImageCapture={handleImageCapture}
           />
         </Container>
+
+        <Snackbar
+          open={exportStatus === "success"}
+          autoHideDuration={8000}
+          onClose={resetExport}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          <Alert
+            severity="success"
+            onClose={resetExport}
+            sx={{ width: "100%" }}
+          >
+            Saved.{" "}
+            {resultUrl && (
+              <Link href={resultUrl} target="_blank" rel="noopener noreferrer">
+                Open page
+              </Link>
+            )}
+          </Alert>
+        </Snackbar>
+
+        <Snackbar
+          open={exportStatus === "error"}
+          autoHideDuration={8000}
+          onClose={resetExport}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          <Alert severity="error" onClose={resetExport} sx={{ width: "100%" }}>
+            {exportError ?? "Failed to save conversation."}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

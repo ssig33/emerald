@@ -1,8 +1,10 @@
 import { OpenAIStreamChunk, ToolCall, StreamError } from "../../types/openai";
+import { ToolInteraction } from "../../types";
 
 export interface StreamCallbacks {
   onContent?: (content: string) => void;
   onToolCalls?: (toolCalls: ToolCall[]) => void;
+  onToolActivity?: (interactions: ToolInteraction[]) => void;
   onComplete?: () => void;
   onError?: (error: Error) => void;
 }

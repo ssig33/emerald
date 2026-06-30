@@ -6,6 +6,13 @@ export interface Message {
   status?: "streaming" | "done";
   images?: ImageData[];
   pageContent?: PageContent;
+  toolInteractions?: ToolInteraction[];
+}
+
+export interface ToolInteraction {
+  name: string;
+  arguments: string;
+  result: string;
 }
 
 export interface ImageData {

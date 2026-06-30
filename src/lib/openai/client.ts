@@ -94,6 +94,7 @@ export class OpenAIClient {
       onToolCalls: async (toolCalls: ToolCall[]) => {
         try {
           const toolResults = await this.toolExecutor.execute(toolCalls);
+          this.reportToolActivity(toolCalls, toolResults, originalCallbacks);
           await this.handleToolResults(
             messages,
             toolCalls,
@@ -107,6 +108,26 @@ export class OpenAIClient {
         }
       },
     };
+  }
+
+  private reportToolActivity(
+    toolCalls: ToolCall[],
+    toolResults: ToolResult[],
+    callbacks: StreamCallbacks,
+  ): void {
+    if (!callbacks.onToolActivity) return;
+
+    const resultById = new Map(
+      toolResults.map((result) => [result.tool_call_id, result.content]),
+    );
+
+    const interactions = toolCalls.map((toolCall) => ({
+      name: toolCall.function.name,
+      arguments: toolCall.function.arguments,
+      result: resultById.get(toolCall.id) ?? "",
+    }));
+
+    callbacks.onToolActivity(interactions);
   }
 
   private async handleToolResults(

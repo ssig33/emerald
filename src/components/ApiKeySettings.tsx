@@ -7,6 +7,9 @@ import {
   Alert,
   InputAdornment,
   IconButton,
+  Divider,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useSettings } from "../hooks/useSettings";
@@ -19,6 +22,19 @@ const ApiKeySettings: React.FC = () => {
   const [model, setModel] = useState(settings.model);
   const [braveApiKey, setBraveApiKey] = useState(settings.braveApiKey);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [s3Endpoint, setS3Endpoint] = useState(settings.s3Endpoint);
+  const [s3Region, setS3Region] = useState(settings.s3Region);
+  const [s3Bucket, setS3Bucket] = useState(settings.s3Bucket);
+  const [s3AccessKeyId, setS3AccessKeyId] = useState(settings.s3AccessKeyId);
+  const [s3SecretAccessKey, setS3SecretAccessKey] = useState(
+    settings.s3SecretAccessKey,
+  );
+  const [s3PathStyle, setS3PathStyle] = useState(settings.s3PathStyle);
+  const [s3Prefix, setS3Prefix] = useState(settings.s3Prefix);
+  const [s3PublicBaseUrl, setS3PublicBaseUrl] = useState(
+    settings.s3PublicBaseUrl,
+  );
+  const [showSecretKey, setShowSecretKey] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -27,6 +43,14 @@ const ApiKeySettings: React.FC = () => {
     setBaseUrl(settings.baseUrl);
     setModel(settings.model);
     setBraveApiKey(settings.braveApiKey);
+    setS3Endpoint(settings.s3Endpoint);
+    setS3Region(settings.s3Region);
+    setS3Bucket(settings.s3Bucket);
+    setS3AccessKeyId(settings.s3AccessKeyId);
+    setS3SecretAccessKey(settings.s3SecretAccessKey);
+    setS3PathStyle(settings.s3PathStyle);
+    setS3Prefix(settings.s3Prefix);
+    setS3PublicBaseUrl(settings.s3PublicBaseUrl);
   }, [loading, settings]);
   const [showBraveApiKey, setShowBraveApiKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
@@ -42,6 +66,14 @@ const ApiKeySettings: React.FC = () => {
         baseUrl,
         model,
         braveApiKey,
+        s3Endpoint,
+        s3Region,
+        s3Bucket,
+        s3AccessKeyId,
+        s3SecretAccessKey,
+        s3PathStyle,
+        s3Prefix,
+        s3PublicBaseUrl,
       });
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2000);
@@ -142,6 +174,105 @@ const ApiKeySettings: React.FC = () => {
         placeholder="System prompt that will be sent at the start of each new conversation..."
         margin="normal"
         helperText="This prompt will be sent to the AI at the beginning of each new conversation to set the context and behavior."
+      />
+
+      <Divider sx={{ my: 3 }} />
+
+      <Typography variant="h6" gutterBottom>
+        Conversation Storage (S3 / MinIO)
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Saved conversations are uploaded as public HTML pages to an
+        S3-compatible bucket.
+      </Typography>
+
+      <TextField
+        fullWidth
+        label="Endpoint"
+        value={s3Endpoint}
+        onChange={(e) => setS3Endpoint(e.target.value)}
+        placeholder="https://s3.amazonaws.com or https://minio.example.com"
+        margin="normal"
+        helperText="Base URL of the S3-compatible service."
+      />
+
+      <TextField
+        fullWidth
+        label="Region"
+        value={s3Region}
+        onChange={(e) => setS3Region(e.target.value)}
+        placeholder="us-east-1"
+        margin="normal"
+      />
+
+      <TextField
+        fullWidth
+        label="Bucket"
+        value={s3Bucket}
+        onChange={(e) => setS3Bucket(e.target.value)}
+        placeholder="my-bucket"
+        margin="normal"
+      />
+
+      <TextField
+        fullWidth
+        label="Access Key ID"
+        value={s3AccessKeyId}
+        onChange={(e) => setS3AccessKeyId(e.target.value)}
+        margin="normal"
+      />
+
+      <TextField
+        fullWidth
+        label="Secret Access Key"
+        type={showSecretKey ? "text" : "password"}
+        value={s3SecretAccessKey}
+        onChange={(e) => setS3SecretAccessKey(e.target.value)}
+        margin="normal"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                aria-label="toggle secret key visibility"
+                onClick={() => setShowSecretKey(!showSecretKey)}
+                edge="end"
+              >
+                {showSecretKey ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+      />
+
+      <TextField
+        fullWidth
+        label="Object Key Prefix"
+        value={s3Prefix}
+        onChange={(e) => setS3Prefix(e.target.value)}
+        placeholder="emerald/conversations"
+        margin="normal"
+        helperText="Folder-like prefix for uploaded files."
+      />
+
+      <TextField
+        fullWidth
+        label="Public Base URL (optional)"
+        value={s3PublicBaseUrl}
+        onChange={(e) => setS3PublicBaseUrl(e.target.value)}
+        placeholder="https://files.example.com"
+        margin="normal"
+        helperText="If set, the shareable link uses this base instead of the endpoint."
+      />
+
+      <FormControlLabel
+        control={
+          <Switch
+            checked={s3PathStyle}
+            onChange={(e) => setS3PathStyle(e.target.checked)}
+          />
+        }
+        label="Path-style addressing (required for MinIO)"
+        sx={{ mt: 1 }}
       />
 
       <Button

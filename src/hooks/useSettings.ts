@@ -6,6 +6,14 @@ interface Settings {
   baseUrl: string;
   model: string;
   braveApiKey: string;
+  s3Endpoint: string;
+  s3Region: string;
+  s3Bucket: string;
+  s3AccessKeyId: string;
+  s3SecretAccessKey: string;
+  s3PathStyle: boolean;
+  s3Prefix: string;
+  s3PublicBaseUrl: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -15,7 +23,17 @@ const DEFAULT_SETTINGS: Settings = {
   baseUrl: "https://api.openai.com/v1/chat/completions",
   model: "gpt-5.4",
   braveApiKey: "",
+  s3Endpoint: "",
+  s3Region: "us-east-1",
+  s3Bucket: "",
+  s3AccessKeyId: "",
+  s3SecretAccessKey: "",
+  s3PathStyle: true,
+  s3Prefix: "emerald/conversations",
+  s3PublicBaseUrl: "",
 };
+
+export type { Settings };
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
