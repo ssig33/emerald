@@ -31,67 +31,60 @@ async function removeEmeraldGroup(groupId: number): Promise<void> {
   });
 }
 
-// Enable the side panel for every tab currently in the given group.
-async function enablePanelForGroup(groupId: number): Promise<void> {
-  const tabs = await chrome.tabs.query({ groupId });
-  await Promise.all(
-    tabs.map((tab) =>
-      tab.id !== undefined
-        ? chrome.sidePanel.setOptions({
-            tabId: tab.id,
-            enabled: true,
-            path: SIDEPANEL_PATH,
-          })
-        : Promise.resolve(),
-    ),
-  );
+// Set the side panel enabled state for a single tab.
+function setTabPanel(tabId: number, enabled: boolean): Promise<void> {
+  return chrome.sidePanel
+    .setOptions({ tabId, enabled, path: SIDEPANEL_PATH })
+    .catch((error) => {
+      console.error(`Failed to set panel for tab ${tabId}:`, error);
+    });
+}
+
+// Group the clicked tab into an Emerald group (reusing an existing one).
+async function ensureEmeraldGroup(tab: chrome.tabs.Tab): Promise<void> {
+  if (tab.id === undefined) return;
+  let groupId = tab.groupId ?? TAB_GROUP_ID_NONE;
+  if (!(await isEmeraldGroup(groupId))) {
+    groupId = await chrome.tabs.group({ tabIds: [tab.id] });
+    await chrome.tabGroups.update(groupId, {
+      title: "Emerald",
+      color: "green",
+    });
+    await addEmeraldGroup(groupId);
+  }
+  console.log(`Emerald group ready: ${groupId}`);
 }
 
 // Side panel logic is Chrome-only. Firefox uses sidebar_action natively.
 if (chrome.sidePanel) {
-  // Hide the side panel globally by default; only Emerald-group tabs enable it.
-  const disableGlobally = () => {
-    chrome.sidePanel.setOptions({ enabled: false }).catch((error) => {
-      console.error("Failed to disable side panel globally:", error);
-    });
-  };
-  chrome.runtime.onInstalled.addListener(disableGlobally);
-  chrome.runtime.onStartup.addListener(disableGlobally);
-  disableGlobally();
-
-  chrome.action.onClicked.addListener(async (tab) => {
+  chrome.action.onClicked.addListener((tab) => {
     if (tab.id === undefined) return;
-
-    let groupId = tab.groupId ?? TAB_GROUP_ID_NONE;
-    if (!(await isEmeraldGroup(groupId))) {
-      groupId = await chrome.tabs.group({ tabIds: [tab.id] });
-      await chrome.tabGroups.update(groupId, {
-        title: "Emerald",
-        color: "green",
-      });
-      await addEmeraldGroup(groupId);
-    }
-
-    await enablePanelForGroup(groupId);
-    await chrome.sidePanel.open({ tabId: tab.id });
+    const tabId = tab.id;
+    // open() must run synchronously within the click gesture — no await before it.
+    chrome.sidePanel
+      .open({ tabId })
+      .catch((error) => console.error("Failed to open side panel:", error));
+    ensureEmeraldGroup(tab).catch((error) =>
+      console.error("Failed to set up Emerald group:", error),
+    );
   });
 
-  // Keep panel visibility in sync as tabs are activated or groups change.
+  // Show the panel only on tabs that belong to an Emerald group.
   chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     const tab = await chrome.tabs.get(tabId);
-    if (await isEmeraldGroup(tab.groupId ?? TAB_GROUP_ID_NONE)) {
-      await chrome.sidePanel.setOptions({
-        tabId,
-        enabled: true,
-        path: SIDEPANEL_PATH,
-      });
-    }
+    const inGroup = await isEmeraldGroup(tab.groupId ?? TAB_GROUP_ID_NONE);
+    await setTabPanel(tabId, inGroup);
   });
 
+  // Reflect group membership changes (e.g. tabs added to / removed from a group).
   chrome.tabGroups.onUpdated.addListener(async (group) => {
-    if (await isEmeraldGroup(group.id)) {
-      await enablePanelForGroup(group.id);
-    }
+    if (!(await isEmeraldGroup(group.id))) return;
+    const tabs = await chrome.tabs.query({ groupId: group.id });
+    await Promise.all(
+      tabs.map((tab) =>
+        tab.id !== undefined ? setTabPanel(tab.id, true) : Promise.resolve(),
+      ),
+    );
   });
 
   // Discard the conversation when an Emerald group is dissolved.
