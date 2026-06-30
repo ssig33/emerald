@@ -12,11 +12,17 @@ import {
   Switch,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { Visibility, VisibilityOff, Delete } from "@mui/icons-material";
-import { useSettings } from "../hooks/useSettings";
+import { useSettings, type Profile } from "../hooks/useSettings";
 
 const ApiKeySettings: React.FC = () => {
   const {
@@ -66,6 +72,7 @@ const ApiKeySettings: React.FC = () => {
   }, [loading, settings]);
   const [showBraveApiKey, setShowBraveApiKey] = useState(false);
   const [profileName, setProfileName] = useState("");
+  const [profileToApply, setProfileToApply] = useState<Profile | null>(null);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
   >("idle");
@@ -75,6 +82,12 @@ const ApiKeySettings: React.FC = () => {
     if (!name) return;
     await saveProfile(name, { baseUrl, openaiApiKey: apiKey, model });
     setProfileName("");
+  };
+
+  const handleConfirmApply = async () => {
+    if (!profileToApply) return;
+    await applyProfile(profileToApply.id);
+    setProfileToApply(null);
   };
 
   const handleSave = async () => {
@@ -201,36 +214,52 @@ const ApiKeySettings: React.FC = () => {
               <ListItem
                 key={profile.id}
                 disableGutters
+                disablePadding
                 secondaryAction={
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() => applyProfile(profile.id)}
-                    >
-                      Apply
-                    </Button>
-                    <IconButton
-                      edge="end"
-                      aria-label={`delete profile ${profile.name}`}
-                      onClick={() => deleteProfile(profile.id)}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Stack>
+                  <IconButton
+                    edge="end"
+                    aria-label={`delete profile ${profile.name}`}
+                    onClick={() => deleteProfile(profile.id)}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
                 }
               >
-                <ListItemText
-                  primary={profile.name}
-                  secondary={profile.model}
-                  primaryTypographyProps={{ noWrap: true }}
-                  secondaryTypographyProps={{ noWrap: true }}
-                />
+                <ListItemButton
+                  onClick={() => setProfileToApply(profile)}
+                  sx={{ borderRadius: 1 }}
+                >
+                  <ListItemText
+                    primary={profile.name}
+                    secondary={profile.model}
+                    primaryTypographyProps={{ noWrap: true }}
+                    secondaryTypographyProps={{ noWrap: true }}
+                  />
+                </ListItemButton>
               </ListItem>
             ))}
           </List>
         )}
       </Box>
+
+      <Dialog
+        open={profileToApply !== null}
+        onClose={() => setProfileToApply(null)}
+      >
+        <DialogTitle>Apply profile?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Switch the Base URL, API Key and Model to
+            {profileToApply ? ` "${profileToApply.name}"` : ""}?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setProfileToApply(null)}>Cancel</Button>
+          <Button onClick={handleConfirmApply} variant="contained">
+            Apply
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <TextField
         fullWidth
