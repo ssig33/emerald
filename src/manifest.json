@@ -31,7 +31,14 @@
       "js": ["src/content/content.ts"]
     }
   ],
-  "{{chrome}}.permissions": ["activeTab", "sidePanel", "storage", "scripting"],
+  "{{chrome}}.permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage",
+    "scripting",
+    "tabs",
+    "tabGroups"
+  ],
   "{{firefox}}.permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "{{firefox}}.browser_specific_settings": {

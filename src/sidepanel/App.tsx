@@ -9,15 +9,11 @@ import {
   Container,
   Drawer,
   IconButton,
-  Divider,
-  Snackbar,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import AddIcon from "@mui/icons-material/Add";
-import SaveIcon from "@mui/icons-material/Save";
 import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
-import ThreadList from "../components/ThreadList";
 import ApiKeySettings from "../components/ApiKeySettings";
 import { Message, ImageData, PageContent } from "../types";
 import { useApi } from "../hooks/useApi";
@@ -57,21 +53,18 @@ const theme = createTheme({
 const App: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>("");
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
-  const [saveMessage, setSaveMessage] = useState<string>("");
   const {
     messages,
-    threadId,
     addMessage,
     appendToLastMessage,
     completeLastMessage,
-    saveThread,
-    loadChatHistory,
+    clearCurrentGroupChat,
   } = useChatThread();
 
-  const handleSaveThread = useCallback(async () => {
-    const saved = await saveThread();
-    setSaveMessage(saved ? "履歴を保存しました" : "保存する会話がありません");
-  }, [saveThread]);
+  const handleNewConversation = useCallback(async () => {
+    await clearCurrentGroupChat();
+    window.location.reload();
+  }, [clearCurrentGroupChat]);
 
   const { sendMessage, error } = useApi();
 
@@ -115,8 +108,7 @@ const App: React.FC = () => {
       setInputValue(""); // Clear input field
 
       const contextToSend:
-        | { images?: ImageData[]; pageContent?: PageContent }
-        | undefined =
+        { images?: ImageData[]; pageContent?: PageContent } | undefined =
         (images && images.length > 0) || pageContent
           ? {
               images: images && images.length > 0 ? images : undefined,
@@ -142,7 +134,6 @@ const App: React.FC = () => {
     },
     [
       sendMessage,
-      threadId,
       addMessage,
       appendToLastMessage,
       completeLastMessage,
@@ -169,16 +160,8 @@ const App: React.FC = () => {
             </Typography>
             <IconButton
               color="inherit"
-              aria-label="save conversation"
-              onClick={handleSaveThread}
-              disabled={messages.length === 0}
-            >
-              <SaveIcon />
-            </IconButton>
-            <IconButton
-              color="inherit"
               aria-label="new conversation"
-              onClick={() => window.location.reload()}
+              onClick={handleNewConversation}
             >
               <AddIcon />
             </IconButton>
@@ -195,11 +178,6 @@ const App: React.FC = () => {
             },
           }}
         >
-          <ThreadList
-            onThreadSelect={loadChatHistory}
-            onClose={() => setDrawerOpen(false)}
-          />
-          <Divider />
           <ApiKeySettings />
         </Drawer>
         <Container
@@ -221,13 +199,6 @@ const App: React.FC = () => {
             onImageCapture={handleImageCapture}
           />
         </Container>
-        <Snackbar
-          open={saveMessage !== ""}
-          autoHideDuration={2000}
-          onClose={() => setSaveMessage("")}
-          message={saveMessage}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        />
       </Box>
     </ThemeProvider>
   );

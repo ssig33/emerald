@@ -1,26 +1,24 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useChatThread } from "../useChatThread";
 import { Message } from "../../types";
 
-// Mock crypto.randomUUID
-const mockCrypto = {
-  randomUUID: vi.fn().mockReturnValue("test-uuid-123"),
-};
-Object.defineProperty(globalThis, "crypto", {
-  value: mockCrypto,
-  writable: true,
-});
-
-// Mock chatStorage
-vi.mock("../../utils/chatStorage", () => ({
-  chatStorage: {
-    getChatHistory: vi.fn(),
-    saveChatHistory: vi.fn(),
+// Mock groupChatStorage
+vi.mock("../../utils/groupChatStorage", () => ({
+  groupChatStorage: {
+    getGroupChat: vi.fn(),
+    saveGroupChat: vi.fn(),
+    clearGroupChat: vi.fn(),
   },
 }));
 
-import { chatStorage } from "../../utils/chatStorage";
+import { groupChatStorage } from "../../utils/groupChatStorage";
+
+const setActiveTabGroup = (groupId: number) => {
+  (chrome.tabs.query as any).mockResolvedValue([
+    { id: 1, active: true, currentWindow: true, groupId },
+  ]);
+};
 
 describe("useChatThread", () => {
   const mockMessage: Message = {
@@ -40,29 +38,19 @@ describe("useChatThread", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCrypto.randomUUID.mockReturnValue("test-uuid-123");
+    vi.mocked(groupChatStorage.getGroupChat).mockResolvedValue(null);
+    // Default: the active tab is not in a group.
+    setActiveTabGroup(-1);
   });
 
   it("initial state is set correctly", () => {
     const { result } = renderHook(() => useChatThread());
 
     expect(result.current.messages).toEqual([]);
-    expect(result.current.threadId).toBe("test-uuid-123");
     expect(typeof result.current.addMessage).toBe("function");
     expect(typeof result.current.appendToLastMessage).toBe("function");
     expect(typeof result.current.completeLastMessage).toBe("function");
-    expect(typeof result.current.saveThread).toBe("function");
-    expect(typeof result.current.loadChatHistory).toBe("function");
-  });
-
-  it("returns same ID once threadId is generated", () => {
-    const { result } = renderHook(() => useChatThread());
-
-    const firstId = result.current.threadId;
-    const secondId = result.current.threadId;
-
-    expect(firstId).toBe(secondId);
-    expect(mockCrypto.randomUUID).toHaveBeenCalledTimes(1);
+    expect(typeof result.current.clearCurrentGroupChat).toBe("function");
   });
 
   it("can add messages", () => {
@@ -135,7 +123,6 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages[0].status).toBe("done");
-    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
   });
 
   it("normalizes CJK markdown on completion", async () => {
@@ -188,64 +175,6 @@ describe("useChatThread", () => {
     expect(result.current.messages[0].status).toBe("done");
   });
 
-  it("can load chat history", async () => {
-    const mockChatData = {
-      messages: [mockMessage, mockAIMessage],
-      title: "Test Chat",
-      lastUpdated: 1625097720000,
-    };
-
-    vi.mocked(chatStorage.getChatHistory).mockResolvedValueOnce(mockChatData);
-
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      await result.current.loadChatHistory("existing-thread-id");
-    });
-
-    expect(result.current.messages).toEqual(mockChatData.messages);
-    expect(result.current.threadId).toBe("existing-thread-id");
-    expect(chatStorage.getChatHistory).toHaveBeenCalledWith(
-      "existing-thread-id",
-    );
-  });
-
-  it("loading non-existent chat history does not cause error", async () => {
-    vi.mocked(chatStorage.getChatHistory).mockResolvedValueOnce(null);
-
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      await result.current.loadChatHistory("non-existent-id");
-    });
-
-    expect(result.current.messages).toEqual([]);
-    expect(consoleSpy).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
-  });
-
-  it("handles chat history loading errors", async () => {
-    const error = new Error("Storage error");
-    vi.mocked(chatStorage.getChatHistory).mockRejectedValueOnce(error);
-
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      await result.current.loadChatHistory("error-id");
-    });
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Failed to load chat history:",
-      error,
-    );
-    expect(result.current.messages).toEqual([]);
-    consoleSpy.mockRestore();
-  });
-
   it("completeLastMessage does nothing when no messages", async () => {
     const { result } = renderHook(() => useChatThread());
 
@@ -254,38 +183,6 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages).toHaveLength(0);
-    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
-  });
-
-  it("saveThread persists current messages explicitly", async () => {
-    const { result } = renderHook(() => useChatThread());
-
-    act(() => {
-      result.current.addMessage(mockMessage);
-    });
-
-    let saved: boolean | undefined;
-    await act(async () => {
-      saved = await result.current.saveThread();
-    });
-
-    expect(saved).toBe(true);
-    expect(chatStorage.saveChatHistory).toHaveBeenCalledWith(
-      "test-uuid-123",
-      result.current.messages,
-    );
-  });
-
-  it("saveThread does nothing when there are no messages", async () => {
-    const { result } = renderHook(() => useChatThread());
-
-    let saved: boolean | undefined;
-    await act(async () => {
-      saved = await result.current.saveThread();
-    });
-
-    expect(saved).toBe(false);
-    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
   });
 
   it("can call appendToLastMessage multiple times", () => {
@@ -304,5 +201,68 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages[0].content).toBe("Hello! How can I help?");
+  });
+
+  it("restores the conversation tied to the current group on mount", async () => {
+    setActiveTabGroup(42);
+    vi.mocked(groupChatStorage.getGroupChat).mockResolvedValueOnce([
+      mockMessage,
+      mockAIMessage,
+    ]);
+
+    const { result } = renderHook(() => useChatThread());
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    expect(groupChatStorage.getGroupChat).toHaveBeenCalledWith(42);
+    expect(result.current.messages).toEqual([mockMessage, mockAIMessage]);
+  });
+
+  it("auto-persists messages to the current group", async () => {
+    setActiveTabGroup(42);
+
+    const { result } = renderHook(() => useChatThread());
+
+    await waitFor(() =>
+      expect(groupChatStorage.getGroupChat).toHaveBeenCalledWith(42),
+    );
+
+    act(() => {
+      result.current.addMessage(mockMessage);
+    });
+
+    await waitFor(() =>
+      expect(groupChatStorage.saveGroupChat).toHaveBeenCalledWith(42, [
+        mockMessage,
+      ]),
+    );
+  });
+
+  it("does not persist when the active tab is not in a group", async () => {
+    // Default beforeEach sets group -1.
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockMessage);
+    });
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(1));
+    expect(groupChatStorage.saveGroupChat).not.toHaveBeenCalled();
+    expect(groupChatStorage.getGroupChat).not.toHaveBeenCalled();
+  });
+
+  it("clearCurrentGroupChat clears the current group's conversation", async () => {
+    setActiveTabGroup(42);
+
+    const { result } = renderHook(() => useChatThread());
+
+    await waitFor(() =>
+      expect(groupChatStorage.getGroupChat).toHaveBeenCalledWith(42),
+    );
+
+    await act(async () => {
+      await result.current.clearCurrentGroupChat();
+    });
+
+    expect(groupChatStorage.clearGroupChat).toHaveBeenCalledWith(42);
   });
 });

@@ -40,12 +40,6 @@ export interface ChatSession {
   createdAt: number;
 }
 
-export interface ChatHistoryItem {
-  threadId: string;
-  title?: string;
-  lastUpdated: number;
-}
-
 export interface AppState {
   currentSession: ChatSession | null;
   sessions: ChatSession[];
