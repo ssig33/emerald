@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -12,13 +12,22 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useSettings } from "../hooks/useSettings";
 
 const ApiKeySettings: React.FC = () => {
-  const { settings, saveSettings } = useSettings();
+  const { settings, loading, saveSettings } = useSettings();
   const [apiKey, setApiKey] = useState(settings.openaiApiKey);
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
   const [baseUrl, setBaseUrl] = useState(settings.baseUrl);
   const [model, setModel] = useState(settings.model);
   const [braveApiKey, setBraveApiKey] = useState(settings.braveApiKey);
   const [showApiKey, setShowApiKey] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    setApiKey(settings.openaiApiKey);
+    setSystemPrompt(settings.systemPrompt);
+    setBaseUrl(settings.baseUrl);
+    setModel(settings.model);
+    setBraveApiKey(settings.braveApiKey);
+  }, [loading, settings]);
   const [showBraveApiKey, setShowBraveApiKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
