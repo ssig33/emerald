@@ -140,6 +140,26 @@ describe("useChatThread", () => {
     );
   });
 
+  it("normalizes CJK markdown on completion", async () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage({
+        ...mockAIMessage,
+        content: "これは**やりたかったこと。**だからするの",
+      });
+    });
+
+    await act(async () => {
+      result.current.completeLastMessage();
+    });
+
+    expect(result.current.messages[0].content).toBe(
+      "これは**やりたかったこと。** だからするの",
+    );
+    expect(result.current.messages[0].status).toBe("done");
+  });
+
   it("completeLastMessage does not change state for non-AI messages", async () => {
     const { result } = renderHook(() => useChatThread());
 

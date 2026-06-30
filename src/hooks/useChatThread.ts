@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Message } from "../types";
 import { chatStorage } from "../utils/chatStorage";
+import { normalizeCjkMarkdown } from "../lib/markdown/cjk-normalize";
 
 export const useChatThread = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,6 +42,7 @@ export const useChatThread = () => {
         if (lastMessage.sender === "ai" && lastMessage.status === "streaming") {
           newMessages[newMessages.length - 1] = {
             ...lastMessage,
+            content: normalizeCjkMarkdown(lastMessage.content),
             status: "done",
           };
         }
