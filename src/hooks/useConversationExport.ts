@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Message } from "../types";
 import { useSettings } from "./useSettings";
 import { buildConversationHtml } from "../lib/export/conversation-html";
+import { generateConversationTitle } from "../lib/openai/title-generator";
 import { uploadToS3, S3Config } from "../lib/storage/s3";
 
 export type ExportStatus = "idle" | "uploading" | "success" | "error";
@@ -48,7 +49,17 @@ export const useConversationExport = () => {
     setResultUrl(null);
 
     try {
-      const html = buildConversationHtml(messages);
+      const title = await generateConversationTitle(
+        {
+          apiKey: settings.openaiApiKey,
+          model: settings.model,
+          baseUrl: settings.baseUrl,
+        },
+        messages,
+      );
+      const html = buildConversationHtml(messages, {
+        title: title ?? undefined,
+      });
       const key = buildObjectKey(settings.s3Prefix);
       const config: S3Config = {
         endpoint: settings.s3Endpoint,
