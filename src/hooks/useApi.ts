@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { ApiRequest, Message, ImageData, PageContent } from "../types";
+import {
+  ApiRequest,
+  Message,
+  ImageData,
+  PageContent,
+  ToolInteraction,
+} from "../types";
 import { useSettings } from "./useSettings";
 import { OpenAIClient } from "../lib/openai/client";
 import { MessageBuilder } from "../lib/message-builder";
@@ -16,6 +22,7 @@ export const useApi = () => {
     contextData?: { images?: ImageData[]; pageContent?: PageContent },
     onMessage?: (chunk: string) => void,
     onComplete?: () => void,
+    onToolActivity?: (interactions: ToolInteraction[]) => void,
   ) => {
     setLoading(true);
     setError(null);
@@ -45,6 +52,7 @@ export const useApi = () => {
 
       await client.sendMessage(messages, {
         onContent: onMessage,
+        onToolActivity,
         onComplete: () => {
           onComplete?.();
           setLoading(false);
