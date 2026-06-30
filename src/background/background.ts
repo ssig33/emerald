@@ -51,21 +51,45 @@ async function ensureEmeraldGroup(tab: chrome.tabs.Tab): Promise<void> {
       color: "green",
     });
     await addEmeraldGroup(groupId);
+    console.log(`[Emerald] created group ${groupId}`);
+  } else {
+    console.log(`[Emerald] reusing group ${groupId}`);
   }
-  console.log(`Emerald group ready: ${groupId}`);
 }
 
 // Side panel logic is Chrome-only. Firefox uses sidebar_action natively.
+console.log("[Emerald] sidePanel available:", !!chrome.sidePanel);
 if (chrome.sidePanel) {
   chrome.action.onClicked.addListener((tab) => {
-    if (tab.id === undefined) return;
+    console.log("[Emerald] action.onClicked", {
+      tabId: tab.id,
+      windowId: tab.windowId,
+      groupId: tab.groupId,
+    });
+    if (tab.id === undefined) {
+      console.warn("[Emerald] no tab.id on click; aborting");
+      return;
+    }
     const tabId = tab.id;
-    // open() must run synchronously within the click gesture — no await before it.
+    const windowId = tab.windowId;
+    // The active tab may have been disabled by onActivated (not yet grouped).
+    // Re-enable it synchronously, then open within the same click gesture.
+    chrome.sidePanel.setOptions({ tabId, enabled: true, path: SIDEPANEL_PATH });
     chrome.sidePanel
       .open({ tabId })
-      .catch((error) => console.error("Failed to open side panel:", error));
+      .then(() => console.log("[Emerald] open({tabId}) resolved", tabId))
+      .catch((error) => {
+        console.error("[Emerald] open({tabId}) failed:", error);
+        // Fall back to a window-level open.
+        chrome.sidePanel
+          .open({ windowId })
+          .then(() =>
+            console.log("[Emerald] open({windowId}) resolved", windowId),
+          )
+          .catch((e) => console.error("[Emerald] open({windowId}) failed:", e));
+      });
     ensureEmeraldGroup(tab).catch((error) =>
-      console.error("Failed to set up Emerald group:", error),
+      console.error("[Emerald] ensureEmeraldGroup failed:", error),
     );
   });
 
@@ -73,6 +97,11 @@ if (chrome.sidePanel) {
   chrome.tabs.onActivated.addListener(async ({ tabId }) => {
     const tab = await chrome.tabs.get(tabId);
     const inGroup = await isEmeraldGroup(tab.groupId ?? TAB_GROUP_ID_NONE);
+    console.log("[Emerald] onActivated", {
+      tabId,
+      groupId: tab.groupId,
+      inGroup,
+    });
     await setTabPanel(tabId, inGroup);
   });
 
