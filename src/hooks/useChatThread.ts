@@ -1,20 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Message } from "../types";
-import { chatStorage } from "../utils/chatStorage";
+import { groupChatStorage } from "../utils/groupChatStorage";
 import { normalizeCjkMarkdown } from "../lib/markdown/cjk-normalize";
+
+const TAB_GROUP_ID_NONE = -1;
+
+async function getCurrentGroupId(): Promise<number> {
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    return tab?.groupId ?? TAB_GROUP_ID_NONE;
+  } catch (error) {
+    console.error("Failed to get current group id:", error);
+    return TAB_GROUP_ID_NONE;
+  }
+}
 
 export const useChatThread = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [threadId, setThreadId] = useState<string>("");
+  const groupIdRef = useRef<number>(TAB_GROUP_ID_NONE);
+  const [loaded, setLoaded] = useState(false);
 
-  const getThreadId = (): string => {
-    if (!threadId) {
-      const newThreadId = crypto.randomUUID();
-      setThreadId(newThreadId);
-      return newThreadId;
-    }
-    return threadId;
-  };
+  // Restore the conversation tied to the current tab group on mount.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const groupId = await getCurrentGroupId();
+      groupIdRef.current = groupId;
+      if (groupId !== TAB_GROUP_ID_NONE) {
+        const stored = await groupChatStorage.getGroupChat(groupId);
+        if (active && stored) {
+          setMessages(stored);
+        }
+      }
+      if (active) setLoaded(true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Auto-persist the conversation for as long as the group lives.
+  useEffect(() => {
+    if (!loaded) return;
+    const groupId = groupIdRef.current;
+    if (groupId === TAB_GROUP_ID_NONE) return;
+    groupChatStorage.saveGroupChat(groupId, messages);
+  }, [messages, loaded]);
 
   const addMessage = (message: Message) => {
     setMessages((prev) => [...prev, message]);
@@ -51,33 +85,19 @@ export const useChatThread = () => {
     });
   };
 
-  const saveThread = async (): Promise<boolean> => {
-    if (messages.length === 0) {
-      return false;
-    }
-    await chatStorage.saveChatHistory(getThreadId(), messages);
-    return true;
-  };
-
-  const loadChatHistory = async (id: string) => {
-    try {
-      const chatData = await chatStorage.getChatHistory(id);
-      if (chatData && chatData.messages) {
-        setMessages(chatData.messages);
-        setThreadId(id);
-      }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
+  // Clear the current group's conversation (used by the "new conversation" action).
+  const clearCurrentGroupChat = async (): Promise<void> => {
+    const groupId = groupIdRef.current;
+    if (groupId !== TAB_GROUP_ID_NONE) {
+      await groupChatStorage.clearGroupChat(groupId);
     }
   };
 
   return {
     messages,
-    threadId: getThreadId(),
     addMessage,
     appendToLastMessage,
     completeLastMessage,
-    saveThread,
-    loadChatHistory,
+    clearCurrentGroupChat,
   };
 };

@@ -15,6 +15,7 @@ interface Tab {
   title?: string;
   active?: boolean;
   currentWindow?: boolean;
+  groupId?: number;
 }
 
 interface RuntimeMessage {
@@ -26,6 +27,7 @@ interface RuntimeMessage {
 interface ChromeMock {
   storage: {
     local: StorageArea;
+    session: StorageArea;
   };
   tabs: {
     query: (queryInfo: {
@@ -67,6 +69,40 @@ interface ChromeMock {
 }
 
 const mockStorage: Record<string, any> = {};
+const mockSessionStorage: Record<string, any> = {};
+
+const createStorageArea = (store: Record<string, any>): StorageArea => ({
+  get: vi.fn().mockImplementation(async (key) => {
+    if (typeof key === "string") {
+      return { [key]: store[key] };
+    } else if (Array.isArray(key)) {
+      const result: Record<string, any> = {};
+      key.forEach((k) => {
+        if (k in store) {
+          result[k] = store[k];
+        }
+      });
+      return result;
+    } else if (key === undefined) {
+      return { ...store };
+    }
+    return {};
+  }),
+  set: vi.fn().mockImplementation(async (items) => {
+    Object.assign(store, items);
+  }),
+  remove: vi.fn().mockImplementation(async (keys) => {
+    const keysArray = Array.isArray(keys) ? keys : [keys];
+    keysArray.forEach((key) => {
+      delete store[key];
+    });
+  }),
+  clear: vi.fn().mockImplementation(async () => {
+    Object.keys(store).forEach((key) => {
+      delete store[key];
+    });
+  }),
+});
 
 const mockTabs: Tab[] = [
   {
@@ -75,6 +111,7 @@ const mockTabs: Tab[] = [
     title: "Example",
     active: true,
     currentWindow: true,
+    groupId: -1,
   },
 ];
 
@@ -88,38 +125,8 @@ const mockRuntime = {
 
 const chromeMock: ChromeMock = {
   storage: {
-    local: {
-      get: vi.fn().mockImplementation(async (key) => {
-        if (typeof key === "string") {
-          return { [key]: mockStorage[key] };
-        } else if (Array.isArray(key)) {
-          const result: Record<string, any> = {};
-          key.forEach((k) => {
-            if (k in mockStorage) {
-              result[k] = mockStorage[k];
-            }
-          });
-          return result;
-        } else if (key === undefined) {
-          return { ...mockStorage };
-        }
-        return {};
-      }),
-      set: vi.fn().mockImplementation(async (items) => {
-        Object.assign(mockStorage, items);
-      }),
-      remove: vi.fn().mockImplementation(async (keys) => {
-        const keysArray = Array.isArray(keys) ? keys : [keys];
-        keysArray.forEach((key) => {
-          delete mockStorage[key];
-        });
-      }),
-      clear: vi.fn().mockImplementation(async () => {
-        Object.keys(mockStorage).forEach((key) => {
-          delete mockStorage[key];
-        });
-      }),
-    },
+    local: createStorageArea(mockStorage),
+    session: createStorageArea(mockSessionStorage),
   },
   tabs: {
     query: vi.fn().mockResolvedValue(mockTabs),
