@@ -1,9 +1,8 @@
 import { Message } from "../../types";
+import { MODEL, REASONING_EFFORT, RESPONSES_URL } from "./constants";
 
 export interface TitleGeneratorConfig {
   apiKey: string;
-  model: string;
-  baseUrl: string;
 }
 
 const MAX_CHARS_PER_MESSAGE = 600;
@@ -30,8 +29,24 @@ function sanitizeTitle(raw: string): string {
     .trim();
 }
 
+/** Concatenate the text parts of the assistant message items in a response. */
+function extractOutputText(data: unknown): string {
+  const output = (data as { output?: unknown }).output;
+  if (!Array.isArray(output)) return "";
+
+  return output
+    .filter((item) => (item as { type?: string }).type === "message")
+    .flatMap((item) => {
+      const content = (item as { content?: unknown }).content;
+      return Array.isArray(content) ? content : [];
+    })
+    .filter((part) => (part as { type?: string }).type === "output_text")
+    .map((part) => (part as { text?: string }).text ?? "")
+    .join("");
+}
+
 /**
- * Generate a short title for the conversation using the configured model.
+ * Generate a short title for the conversation.
  * Returns null on any failure so the upload can fall back to a default title.
  */
 export async function generateConversationTitle(
@@ -42,16 +57,17 @@ export async function generateConversationTitle(
   if (!transcript) return null;
 
   try {
-    const response = await fetch(config.baseUrl, {
+    const response = await fetch(RESPONSES_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
-        model: config.model,
+        model: MODEL,
+        reasoning: { effort: REASONING_EFFORT },
         stream: false,
-        messages: [
+        input: [
           {
             role: "system",
             content:
@@ -69,11 +85,7 @@ export async function generateConversationTitle(
 
     if (!response.ok) return null;
 
-    const data = await response.json();
-    const raw: unknown = data?.choices?.[0]?.message?.content;
-    if (typeof raw !== "string") return null;
-
-    const title = sanitizeTitle(raw);
+    const title = sanitizeTitle(extractOutputText(await response.json()));
     return title || null;
   } catch {
     return null;

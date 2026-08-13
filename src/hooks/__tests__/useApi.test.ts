@@ -9,9 +9,6 @@ vi.mock("../useSettings", () => ({
     settings: {
       openaiApiKey: "sk-test-key-123",
       systemPrompt: "You are a helpful AI assistant for testing.",
-      baseUrl: "https://api.openai.com/v1/chat/completions",
-      model: "gpt-5.4",
-      braveApiKey: "",
     },
     loading: false,
     updateApiKey: vi.fn(),
@@ -114,9 +111,6 @@ describe("useApi", () => {
 
     expect(OpenAIClient).toHaveBeenCalledWith({
       apiKey: "sk-test-key-123",
-      baseUrl: "https://api.openai.com/v1/chat/completions",
-      model: "gpt-5.4",
-      braveApiKey: "",
     });
 
     expect(MessageBuilder).toHaveBeenCalled();

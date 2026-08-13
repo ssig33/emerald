@@ -1,10 +1,11 @@
 # Emerald
 
-AI assistant browser extension with OpenAI integration. Supports Chrome and Firefox.
+AI assistant browser extension built on the OpenAI Responses API. Supports Chrome and Firefox.
 
 ## Features
 
-- Chat with OpenAI GPT models
+- Chat with `gpt-5.6-luna` at `max` reasoning effort
+- Web search through OpenAI's built-in `web_search` tool
 - Screen capture and image analysis
 - Page context integration
 - Conversation history

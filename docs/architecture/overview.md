@@ -42,15 +42,19 @@ Emerald follows a **modular, layered architecture** that separates concerns and 
 
 ```
 OpenAIClient
-├── StreamProcessor     # Handles streaming responses
-├── ToolExecutor       # Executes Chrome extension tools
-└── MessageBuilder     # Converts to OpenAI message format
+├── StreamProcessor     # Handles streaming Responses API events
+├── ToolExecutor       # Executes local function tools
+└── MessageBuilder     # Converts to Responses API input items
 ```
+
+The client talks to the OpenAI Responses API only. The model, the endpoint and
+the reasoning effort are fixed in `src/lib/openai/constants.ts`.
 
 #### Tool System (`src/lib/tools/`)
 
-- **ToolExecutor**: Manages Chrome extension tool execution
-- **Available Tools**: Page text extraction, future extensibility
+- **ToolExecutor**: Executes the local function tools
+- **Local Tools**: `get_current_time`
+- **Hosted Tools**: OpenAI's built-in `web_search`, resolved server side
 - **Pattern**: Strategy pattern for tool implementations
 
 ### 4. Type System (`src/types/`)
@@ -115,7 +119,7 @@ const messages = messageBuilder.buildMessages(
 
 ```typescript
 // Different tools can be executed through common interface
-const results = await toolExecutor.execute(toolCalls);
+const results = await toolExecutor.execute(functionCalls);
 ```
 
 ## Error Handling Strategy
@@ -176,15 +180,7 @@ Add new tools by:
 2. Adding tool definition to `AVAILABLE_TOOLS`
 3. Adding tests for new functionality
 
-### 2. New AI Providers
-
-Extend by:
-
-1. Creating new client class implementing common interface
-2. Adding provider selection in configuration
-3. Maintaining consistent message format
-
-### 3. New UI Components
+### 2. New UI Components
 
 Add by:
 

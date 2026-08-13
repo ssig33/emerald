@@ -1,71 +1,97 @@
-export interface OpenAIMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string | OpenAIMessageContent[] | null;
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
+export type ResponseRole = "system" | "user" | "assistant";
+
+export interface ResponseInputText {
+  type: "input_text";
+  text: string;
 }
 
-export interface OpenAIMessageContent {
-  type: "text" | "image_url";
-  text?: string;
-  image_url?: { url: string };
+export interface ResponseInputImage {
+  type: "input_image";
+  image_url: string;
 }
 
-export interface ToolCall {
-  id: string;
+export type ResponseContentPart = ResponseInputText | ResponseInputImage;
+
+export interface ResponseMessageItem {
+  role: ResponseRole;
+  content: string | ResponseContentPart[];
+}
+
+export interface FunctionCallItem {
+  type: "function_call";
+  id?: string;
+  call_id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface FunctionCallOutputItem {
+  type: "function_call_output";
+  call_id: string;
+  output: string;
+}
+
+export type ResponseInputItem =
+  ResponseMessageItem | FunctionCallItem | FunctionCallOutputItem;
+
+export interface FunctionTool {
   type: "function";
-  function: {
-    name: string;
-    arguments: string;
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required: string[];
+    additionalProperties: false;
   };
+  strict: true;
 }
 
-export interface ToolResult {
-  tool_call_id: string;
-  role: "tool";
-  content: string;
+export interface WebSearchTool {
+  type: "web_search";
 }
 
-export interface OpenAIStreamChunk {
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      tool_calls?: Array<{
-        index: number;
-        id?: string;
-        type?: "function";
-        function?: {
-          name?: string;
-          arguments?: string;
-        };
-      }>;
-    };
-    finish_reason?: "stop" | "length" | "tool_calls" | null;
-  }>;
-  error?: {
-    message: string;
-    type?: string;
-    code?: string;
-  };
-}
+export type ToolDefinition = FunctionTool | WebSearchTool;
 
-export interface OpenAIRequest {
+/** GPT-5.6 accepts none, low, medium, high, xhigh and max. */
+export type ReasoningEffort =
+  "none" | "low" | "medium" | "high" | "xhigh" | "max";
+
+export interface ResponsesRequest {
   model: string;
-  messages: OpenAIMessage[];
-  tools?: ToolDefinition[];
-  tool_choice?: "auto" | "none";
+  input: ResponseInputItem[];
+  tools: ToolDefinition[];
+  tool_choice: "auto";
+  reasoning: { effort: ReasoningEffort };
   stream: boolean;
 }
 
-export interface ToolDefinition {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: {
-      type: "object";
-      properties: Record<string, unknown>;
-      required: string[];
+/** Item emitted by the model, as delivered by response.output_item.* events. */
+export interface ResponseOutputItem {
+  type: string;
+  id?: string;
+  call_id?: string;
+  name?: string;
+  arguments?: string;
+  status?: string;
+  action?: {
+    type?: string;
+    query?: string;
+    url?: string;
+  };
+}
+
+export interface ResponseStreamEvent {
+  type: string;
+  delta?: string;
+  item?: ResponseOutputItem;
+  message?: string;
+  code?: string;
+  response?: {
+    status?: string;
+    error?: {
+      message?: string;
+      code?: string;
     };
   };
 }

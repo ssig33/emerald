@@ -2,7 +2,20 @@
 
 ## Overview
 
-The API communication system is designed around **streaming responses**, **tool execution**, and **modular responsibility separation**. The architecture supports real-time conversation updates while maintaining robust error handling and extensibility.
+The API communication system targets the **OpenAI Responses API** exclusively and
+is designed around **streaming responses**, **tool execution**, and **modular
+responsibility separation**. The architecture supports real-time conversation
+updates while maintaining robust error handling and extensibility.
+
+Fixed configuration lives in `src/lib/openai/constants.ts`:
+
+| Setting          | Value                                 |
+| ---------------- | ------------------------------------- |
+| Endpoint         | `https://api.openai.com/v1/responses` |
+| Model            | `gpt-5.6-luna`                        |
+| Reasoning effort | `max`                                 |
+
+The only user-provided API setting is the OpenAI API key.
 
 ## Architecture Components
 
@@ -30,8 +43,7 @@ The API communication system is designed around **streaming responses**, **tool 
 
 **Key Features**:
 
-- Configuration management (API key, model, base URL)
-- Request payload construction
+- Request payload construction (model, tools, reasoning effort)
 - Stream processing coordination
 - Tool execution integration
 - Error handling and retry logic
@@ -41,9 +53,25 @@ The API communication system is designed around **streaming responses**, **tool 
 ```typescript
 interface OpenAIClient {
   sendMessage(
-    messages: OpenAIMessage[],
+    input: ResponseInputItem[],
     callbacks: StreamCallbacks,
   ): Promise<void>;
+}
+```
+
+**Request Shape**:
+
+```json
+{
+  "model": "gpt-5.6-luna",
+  "input": [{ "role": "user", "content": "..." }],
+  "tools": [
+    { "type": "function", "name": "get_current_time" },
+    { "type": "web_search" }
+  ],
+  "tool_choice": "auto",
+  "reasoning": { "effort": "max" },
+  "stream": true
 }
 ```
 
@@ -55,15 +83,15 @@ interface OpenAIClient {
 
 ### 2. StreamProcessor (`src/lib/openai/stream-processor.ts`)
 
-**Responsibility**: Handles OpenAI streaming response parsing and event emission.
+**Responsibility**: Parses the Responses API server-sent event stream and emits
+application events.
 
-**Key Features**:
+**Handled Events**:
 
-- Real-time chunk processing
-- Tool call accumulation
-- JSON parsing with error recovery
-- Buffer management for partial data
-- Event-driven architecture
+- `response.output_text.delta`: Streamed assistant text
+- `response.output_item.done` with a `function_call` item: A local tool has to run
+- `response.output_item.done` with a `web_search_call` item: Reported as tool activity
+- `error`, `response.failed`, `response.incomplete`: Turned into a `StreamError`
 
 **Processing Flow**:
 
@@ -74,43 +102,48 @@ Raw Stream → Buffer Management → Line Processing → JSON Parsing → Event 
 **State Management**:
 
 - **Buffer**: Accumulates partial stream data
-- **Tool Calls Buffer**: Builds complete tool calls from deltas
+- **Function Calls**: Collected until the stream ends, then handed to the client
 - **Error State**: Handles malformed data gracefully
+
+When the stream ends with pending function calls, `onToolCalls` fires instead of
+`onComplete`: the conversation is not finished until the follow-up request that
+carries the tool outputs has streamed its own answer.
 
 ### 3. ToolExecutor (`src/lib/tools/executor.ts`)
 
-**Responsibility**: Executes Chrome extension tools and manages tool lifecycle.
+**Responsibility**: Executes the local function tools and manages tool lifecycle.
 
-**Current Tools**:
+**Local Tools**:
 
-- `get_page_text`: Extracts and processes page content from active tab
-  - Fetches HTML content from the page
-  - Parses HTML using Defuddle for intelligent content extraction
-  - Converts processed content to Markdown using Turndown
-  - Returns clean, structured text content
 - `get_current_time`: Provides current local date and time
   - Returns current local time in readable format
   - Essential for temporal context in conversations
   - Automatically called at conversation start for time-aware responses
 
+**Hosted Tools**:
+
+- `web_search`: OpenAI's built-in web search. It runs server side, so there is
+  nothing to execute locally; results and `url_citation` annotations come back in
+  the same stream.
+
 **Execution Pattern**:
 
 ```typescript
 // Tool execution is async and error-isolated
-const results = await toolExecutor.execute(toolCalls);
-// Each tool call gets individual error handling
+const outputs = await toolExecutor.execute(functionCalls);
+// Each function call gets individual error handling
 ```
 
 **Error Isolation**: Tool failures don't break the conversation flow.
 
 ### 4. MessageBuilder (`src/lib/message-builder.ts`)
 
-**Responsibility**: Converts application data structures to OpenAI API format.
+**Responsibility**: Converts application data structures to Responses API input items.
 
 **Key Transformations**:
 
-- Conversation history → OpenAI messages
-- Multimodal content (text + images) → structured format
+- Conversation history → input message items
+- Multimodal content (`input_text` + `input_image`) → structured format
 - System prompt injection for new conversations
 - Message role mapping (user/ai → user/assistant)
 
@@ -131,8 +164,14 @@ User Input + Images → MessageBuilder (multimodal format) → OpenAIClient → 
 ### 3. Tool-Enhanced Conversation
 
 ```
-User Input → OpenAI → Tool Call → ToolExecutor → Chrome API →
-Tool Result → OpenAI (follow-up) → StreamProcessor → UI Update
+User Input → OpenAI → function_call → ToolExecutor → Chrome API →
+function_call_output → OpenAI (follow-up) → StreamProcessor → UI Update
+```
+
+### 4. Web Search Conversation
+
+```
+User Input → OpenAI → hosted web search → answer with citations → StreamProcessor → UI Update
 ```
 
 ## Streaming Architecture
@@ -160,7 +199,8 @@ private processBuffer() {
 ```typescript
 interface StreamCallbacks {
   onContent?: (content: string) => void; // Real-time text updates
-  onToolCalls?: (calls: ToolCall[]) => void; // Tool execution trigger
+  onToolCalls?: (calls: FunctionCallItem[]) => void; // Tool execution trigger
+  onToolActivity?: (interactions: ToolInteraction[]) => void; // Tool transcript
   onComplete?: () => void; // Stream completion
   onError?: (error: Error) => void; // Error handling
 }
@@ -171,20 +211,25 @@ interface StreamCallbacks {
 ### 1. Tool Definition
 
 ```typescript
-interface ToolDefinition {
+// Local function tool (flat shape, as required by the Responses API)
+interface FunctionTool {
   type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: JSONSchema;
-  };
+  name: string;
+  description: string;
+  parameters: JSONSchema;
+  strict: true;
+}
+
+// Hosted tool
+interface WebSearchTool {
+  type: "web_search";
 }
 ```
 
 ### 2. Execution Pipeline
 
 ```
-OpenAI Tool Request → ToolExecutor.execute() → Chrome API Call → Result → OpenAI
+OpenAI function_call → ToolExecutor.execute() → Chrome API Call → function_call_output → OpenAI
 ```
 
 ### 3. Error Handling in Tools
@@ -238,17 +283,17 @@ OpenAI Tool Request → ToolExecutor.execute() → Chrome API Call → Result �
 ```typescript
 interface OpenAIClientConfig {
   apiKey: string; // Required: OpenAI API authentication
-  model?: string; // Optional: Model selection (default: gpt-5.1)
-  baseUrl?: string; // Optional: Custom API endpoint
 }
 ```
+
+Everything else is fixed: model, endpoint, reasoning effort and tools are
+compiled in, so there is no provider, model or endpoint selection to configure.
 
 ### 2. Runtime Configuration
 
 - API key validation
-- Model capability detection
-- Feature flag management
-- Environment-specific settings
+- System prompt
+- Conversation storage (S3 / MinIO) settings
 
 ## Performance Optimization
 
@@ -272,39 +317,29 @@ interface OpenAIClientConfig {
 
 ## Extensibility Points
 
-### 1. Adding New AI Providers
-
-```typescript
-// Implement common interface
-interface AIClient {
-  sendMessage(messages: Message[], callbacks: StreamCallbacks): Promise<void>;
-}
-
-// Register new provider
-const client = providerFactory.create(providerType, config);
-```
-
-### 2. Adding New Tools
+### 1. Adding New Tools
 
 ```typescript
 // Extend ToolExecutor with new tool
-private async executeSingleTool(toolCall: ToolCall): Promise<ToolResult> {
-  switch (toolCall.function.name) {
+private async executeSingleTool(
+  functionCall: FunctionCallItem,
+): Promise<FunctionCallOutputItem> {
+  switch (functionCall.name) {
     case "new_tool_name":
-      return await this.executeNewTool(toolCall.id);
+      return await this.executeNewTool(functionCall.call_id);
     // ... existing cases
   }
 }
 ```
 
-### 3. Custom Message Formatting
+### 2. Custom Message Formatting
 
 ```typescript
 // Extend MessageBuilder for new content types
 buildMessages(message, history, systemPrompt, contextData) {
   // Handle new context data types
   // Apply custom formatting rules
-  // Return OpenAI-compatible format
+  // Return Responses API input items
 }
 ```
 
