@@ -10,16 +10,21 @@ function makeMessage(
   return { id, sender, content, timestamp: 0 };
 }
 
-const config = {
-  apiKey: "sk-test",
-  model: "gpt-5.4",
-  baseUrl: "https://api.openai.com/v1/chat/completions",
-};
+const config = { apiKey: "sk-test" };
 
-function mockResponse(content: string) {
+function mockResponse(text: string) {
   return {
     ok: true,
-    json: async () => ({ choices: [{ message: { content } }] }),
+    json: async () => ({
+      output: [
+        { type: "reasoning", summary: [] },
+        {
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text, annotations: [] }],
+        },
+      ],
+    }),
   } as Response;
 }
 
@@ -44,11 +49,15 @@ describe("generateConversationTitle", () => {
 
     expect(title).toBe("React hooks の使い方");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://api.openai.com/v1/responses",
+    );
 
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
-    expect(body.model).toBe("gpt-5.4");
+    expect(body.model).toBe("gpt-5.6-luna");
+    expect(body.reasoning).toEqual({ effort: "max" });
     expect(body.stream).toBe(false);
   });
 
@@ -85,10 +94,10 @@ describe("generateConversationTitle", () => {
     expect(title).toBeNull();
   });
 
-  it("returns null when the response has no string content", async () => {
+  it("returns null when the response has no text output", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [] }),
+      json: async () => ({ output: [{ type: "reasoning", summary: [] }] }),
     } as Response);
 
     const title = await generateConversationTitle(config, [

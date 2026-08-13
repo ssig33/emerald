@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { OpenAIClient } from "../client";
-import { OpenAIMessage, ApiError } from "../../../types/openai";
-
-vi.mock("../stream-processor");
-vi.mock("../tools/executor");
+import { ResponseInputItem, ApiError } from "../../../types/openai";
 
 const createMockReader = (chunks: string[]) => {
   let index = 0;
@@ -28,6 +25,12 @@ const createMockResponse = (chunks: string[], status = 200) => ({
   },
 });
 
+const textDelta = (text: string) =>
+  `data: {"type":"response.output_text.delta","delta":${JSON.stringify(text)}}\n`;
+
+const functionCallDone = (callId: string, name: string, args: string) =>
+  `data: {"type":"response.output_item.done","item":{"type":"function_call","id":"fc_1","call_id":"${callId}","name":"${name}","arguments":${JSON.stringify(args)}}}\n`;
+
 describe("OpenAIClient", () => {
   let client: OpenAIClient;
   const mockApiKey = "sk-test-key-123";
@@ -37,31 +40,8 @@ describe("OpenAIClient", () => {
     vi.clearAllMocks();
   });
 
-  describe("constructor", () => {
-    it("should initialize with default config", () => {
-      const client = new OpenAIClient({ apiKey: mockApiKey });
-      expect(client).toBeInstanceOf(OpenAIClient);
-    });
-
-    it("should allow custom model", () => {
-      const client = new OpenAIClient({
-        apiKey: mockApiKey,
-        model: "gpt-4o",
-      });
-      expect(client).toBeInstanceOf(OpenAIClient);
-    });
-
-    it("should allow custom base URL", () => {
-      const client = new OpenAIClient({
-        apiKey: mockApiKey,
-        baseUrl: "https://custom.api.com/v1/chat/completions",
-      });
-      expect(client).toBeInstanceOf(OpenAIClient);
-    });
-  });
-
   describe("sendMessage", () => {
-    const mockMessages: OpenAIMessage[] = [
+    const mockInput: ResponseInputItem[] = [
       {
         role: "user",
         content: "Hello, AI!",
@@ -70,9 +50,9 @@ describe("OpenAIClient", () => {
 
     it("should send message successfully", async () => {
       const chunks = [
-        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n',
-        'data: {"choices":[{"delta":{"content":" World"}}]}\n',
-        "data: [DONE]\n",
+        textDelta("Hello"),
+        textDelta(" World"),
+        'data: {"type":"response.completed"}\n',
       ];
 
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
@@ -80,13 +60,10 @@ describe("OpenAIClient", () => {
       const onContent = vi.fn();
       const onComplete = vi.fn();
 
-      await client.sendMessage(mockMessages, {
-        onContent,
-        onComplete,
-      });
+      await client.sendMessage(mockInput, { onContent, onComplete });
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "https://api.openai.com/v1/chat/completions",
+        "https://api.openai.com/v1/responses",
         expect.objectContaining({
           method: "POST",
           headers: {
@@ -96,186 +73,132 @@ describe("OpenAIClient", () => {
         }),
       );
 
+      expect(onContent).toHaveBeenNthCalledWith(1, "Hello");
+      expect(onContent).toHaveBeenNthCalledWith(2, " World");
+      expect(onComplete).toHaveBeenCalled();
+    });
+
+    it("should always request gpt-5.6-luna with max reasoning effort", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      await client.sendMessage(mockInput, {});
+
       const requestBody = JSON.parse(
         (globalThis.fetch as any).mock.calls[0][1].body,
       );
-      expect(requestBody.model).toBe("gpt-5.4");
-      expect(requestBody.messages).toEqual(mockMessages);
-      expect(requestBody.tools).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: "function",
-            function: expect.objectContaining({
-              name: "get_current_time",
-            }),
-          }),
-        ]),
-      );
+
+      expect(requestBody.model).toBe("gpt-5.6-luna");
+      expect(requestBody.reasoning).toEqual({ effort: "max" });
+      expect(requestBody.input).toEqual(mockInput);
       expect(requestBody.tool_choice).toBe("auto");
       expect(requestBody.stream).toBe(true);
+    });
+
+    it("should offer the local function tool and the built-in web search", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      await client.sendMessage(mockInput, {});
+
+      const requestBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[0][1].body,
+      );
+
+      expect(requestBody.tools).toEqual([
+        expect.objectContaining({ type: "function", name: "get_current_time" }),
+        { type: "web_search" },
+      ]);
     });
 
     it("should handle HTTP errors", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([], 500));
 
-      await expect(client.sendMessage(mockMessages, {})).rejects.toThrow(
-        ApiError,
-      );
+      await expect(client.sendMessage(mockInput, {})).rejects.toThrow(ApiError);
     });
 
     it("should handle network errors", async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-      await expect(client.sendMessage(mockMessages, {})).rejects.toThrow(
-        ApiError,
-      );
+      await expect(client.sendMessage(mockInput, {})).rejects.toThrow(ApiError);
     });
 
-    it("should handle fetch rejection", async () => {
+    it("should execute function calls and continue with their outputs", async () => {
+      const firstResponse = createMockResponse([
+        functionCallDone("call_1", "get_current_time", "{}"),
+        'data: {"type":"response.completed"}\n',
+      ]);
+      const secondResponse = createMockResponse([
+        textDelta("It is late."),
+        'data: {"type":"response.completed"}\n',
+      ]);
+
       globalThis.fetch = vi
         .fn()
-        .mockRejectedValue(new Error("Connection failed"));
+        .mockResolvedValueOnce(firstResponse)
+        .mockResolvedValueOnce(secondResponse);
 
-      const onError = vi.fn();
+      const onContent = vi.fn();
+      const onComplete = vi.fn();
+      const onToolActivity = vi.fn();
 
-      await expect(
-        client.sendMessage(mockMessages, { onError }),
-      ).rejects.toThrow(ApiError);
-    });
-
-    it("should use custom model when provided", async () => {
-      const customClient = new OpenAIClient({
-        apiKey: mockApiKey,
-        model: "gpt-4o",
+      await client.sendMessage(mockInput, {
+        onContent,
+        onComplete,
+        onToolActivity,
       });
 
-      const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
 
-      await customClient.sendMessage(mockMessages, {});
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          body: expect.stringContaining('"model":"gpt-4o"'),
-        }),
+      const followUpBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[1][1].body,
       );
+      expect(followUpBody.input).toEqual([
+        ...mockInput,
+        {
+          type: "function_call",
+          call_id: "call_1",
+          name: "get_current_time",
+          arguments: "{}",
+        },
+        {
+          type: "function_call_output",
+          call_id: "call_1",
+          output: expect.stringMatching(/^Current local time:/),
+        },
+      ]);
+
+      expect(onToolActivity).toHaveBeenCalledWith([
+        expect.objectContaining({ name: "get_current_time" }),
+      ]);
+      expect(onContent).toHaveBeenCalledWith("It is late.");
+      expect(onComplete).toHaveBeenCalledTimes(1);
     });
 
-    it("should use custom base URL when provided", async () => {
-      const customBaseUrl = "https://custom.api.com/v1/chat/completions";
-      const customClient = new OpenAIClient({
-        apiKey: mockApiKey,
-        baseUrl: customBaseUrl,
-      });
-
-      const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
-
-      await customClient.sendMessage(mockMessages, {});
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        customBaseUrl,
-        expect.any(Object),
-      );
-    });
-
-    it("should include tools in request", async () => {
-      const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
-
-      await client.sendMessage(mockMessages, {});
-
-      const requestBody = JSON.parse(
-        (globalThis.fetch as any).mock.calls[0][1].body,
-      );
-
-      expect(requestBody.tools).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: "function",
-            function: expect.objectContaining({
-              name: "get_current_time",
-            }),
-          }),
-        ]),
-      );
-    });
-
-    it("should set stream to true", async () => {
-      const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
-
-      await client.sendMessage(mockMessages, {});
-
-      const requestBody = JSON.parse(
-        (globalThis.fetch as any).mock.calls[0][1].body,
-      );
-
-      expect(requestBody.stream).toBe(true);
-    });
-
-    it("should set tool_choice to auto", async () => {
-      const chunks = ['data: {"choices":[{"delta":{"content":"test"}}]}\n'];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
-
-      await client.sendMessage(mockMessages, {});
-
-      const requestBody = JSON.parse(
-        (globalThis.fetch as any).mock.calls[0][1].body,
-      );
-
-      expect(requestBody.tool_choice).toBe("auto");
-    });
-
-    it("should handle multiple messages", async () => {
-      const multipleMessages: OpenAIMessage[] = [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: "Hello!" },
-        { role: "assistant", content: "Hi there!" },
-        { role: "user", content: "How are you?" },
-      ];
-
-      const chunks = [
-        'data: {"choices":[{"delta":{"content":"I\'m good"}}]}\n',
-      ];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
-
-      await client.sendMessage(multipleMessages, {});
-
-      const requestBody = JSON.parse(
-        (globalThis.fetch as any).mock.calls[0][1].body,
-      );
-
-      expect(requestBody.messages).toEqual(multipleMessages);
-    });
-
-    it("should handle multimodal messages", async () => {
-      const multimodalMessage: OpenAIMessage[] = [
+    it("should handle multimodal input", async () => {
+      const multimodalInput: ResponseInputItem[] = [
         {
           role: "user",
           content: [
-            { type: "text", text: "What's in this image?" },
-            {
-              type: "image_url",
-              image_url: { url: "data:image/jpeg;base64,..." },
-            },
+            { type: "input_text", text: "What's in this image?" },
+            { type: "input_image", image_url: "data:image/jpeg;base64,..." },
           ],
         },
       ];
 
-      const chunks = [
-        'data: {"choices":[{"delta":{"content":"I see an image"}}]}\n',
-      ];
-      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(chunks));
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("I see an image")]));
 
-      await client.sendMessage(multimodalMessage, {});
+      await client.sendMessage(multimodalInput, {});
 
       const requestBody = JSON.parse(
         (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
-      expect(requestBody.messages).toEqual(multimodalMessage);
+      expect(requestBody.input).toEqual(multimodalInput);
     });
   });
 });
