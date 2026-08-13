@@ -122,14 +122,12 @@ describe("MessageBuilder", () => {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: "What's in this image?",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/png;base64,abc123",
-              },
+              type: "input_image",
+              image_url: "data:image/png;base64,abc123",
             },
           ],
         },
@@ -160,20 +158,16 @@ describe("MessageBuilder", () => {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: "Compare these images",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/png;base64,abc123",
-              },
+              type: "input_image",
+              image_url: "data:image/png;base64,abc123",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/jpeg;base64,def456",
-              },
+              type: "input_image",
+              image_url: "data:image/jpeg;base64,def456",
             },
           ],
         },
@@ -209,14 +203,12 @@ describe("MessageBuilder", () => {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: "Look at this",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/png;base64,xyz789",
-              },
+              type: "input_image",
+              image_url: "data:image/png;base64,xyz789",
             },
           ],
         },
@@ -387,14 +379,12 @@ describe("MessageBuilder", () => {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: `<page_context>\nTitle: Test Page\nURL: https://example.com\n\n# Hello\n</page_context>\n\nLook at this page`,
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/png;base64,abc123",
-              },
+              type: "input_image",
+              image_url: "data:image/png;base64,abc123",
             },
           ],
         },
@@ -446,14 +436,12 @@ describe("MessageBuilder", () => {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: "First message",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/png;base64,hist123",
-              },
+              type: "input_image",
+              image_url: "data:image/png;base64,hist123",
             },
           ],
         },
@@ -465,14 +453,12 @@ describe("MessageBuilder", () => {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: "Current message",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: "data:image/jpeg;base64,curr456",
-              },
+              type: "input_image",
+              image_url: "data:image/jpeg;base64,curr456",
             },
           ],
         },

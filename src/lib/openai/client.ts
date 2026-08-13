@@ -1,44 +1,34 @@
 import {
-  OpenAIRequest,
-  OpenAIMessage,
-  ToolCall,
-  ToolResult,
   ApiError,
+  FunctionCallItem,
+  FunctionCallOutputItem,
+  ResponseInputItem,
+  ResponsesRequest,
 } from "../../types/openai";
+import { MODEL, REASONING_EFFORT, RESPONSES_URL } from "./constants";
 import { StreamProcessor, StreamCallbacks } from "./stream-processor";
 import { ToolExecutor, getAvailableTools } from "../tools/executor";
 
 export interface OpenAIClientConfig {
   apiKey: string;
-  model?: string;
-  baseUrl?: string;
-  braveApiKey?: string;
 }
 
-const DEFAULT_CONFIG = {
-  model: "gpt-5.4",
-  baseUrl: "https://api.openai.com/v1/chat/completions",
-  braveApiKey: "",
-};
-
 export class OpenAIClient {
-  private config: Required<OpenAIClientConfig>;
+  private apiKey: string;
   private streamProcessor: StreamProcessor;
   private toolExecutor: ToolExecutor;
 
   constructor(config: OpenAIClientConfig) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.apiKey = config.apiKey;
     this.streamProcessor = new StreamProcessor();
-    this.toolExecutor = new ToolExecutor({
-      braveApiKey: this.config.braveApiKey,
-    });
+    this.toolExecutor = new ToolExecutor();
   }
 
   async sendMessage(
-    messages: OpenAIMessage[],
+    input: ResponseInputItem[],
     callbacks: StreamCallbacks,
   ): Promise<void> {
-    const request = this.buildRequest(messages);
+    const request = this.buildRequest(input);
 
     try {
       const response = await this.makeRequest(request);
@@ -50,7 +40,7 @@ export class OpenAIClient {
         );
       }
 
-      const enhancedCallbacks = this.wrapCallbacks(callbacks, messages);
+      const enhancedCallbacks = this.wrapCallbacks(callbacks, input);
       await this.streamProcessor.processStream(response, enhancedCallbacks);
     } catch (error) {
       if (error instanceof ApiError) {
@@ -64,22 +54,23 @@ export class OpenAIClient {
     }
   }
 
-  private buildRequest(messages: OpenAIMessage[]): OpenAIRequest {
+  private buildRequest(input: ResponseInputItem[]): ResponsesRequest {
     return {
-      model: this.config.model,
-      messages,
-      tools: getAvailableTools({ braveApiKey: this.config.braveApiKey }),
+      model: MODEL,
+      input,
+      tools: getAvailableTools(),
       tool_choice: "auto",
+      reasoning: { effort: REASONING_EFFORT },
       stream: true,
     };
   }
 
-  private async makeRequest(request: OpenAIRequest): Promise<Response> {
-    return fetch(this.config.baseUrl, {
+  private async makeRequest(request: ResponsesRequest): Promise<Response> {
+    return fetch(RESPONSES_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(request),
     });
@@ -87,18 +78,18 @@ export class OpenAIClient {
 
   private wrapCallbacks(
     originalCallbacks: StreamCallbacks,
-    messages: OpenAIMessage[],
+    input: ResponseInputItem[],
   ): StreamCallbacks {
     return {
       ...originalCallbacks,
-      onToolCalls: async (toolCalls: ToolCall[]) => {
+      onToolCalls: async (functionCalls: FunctionCallItem[]) => {
         try {
-          const toolResults = await this.toolExecutor.execute(toolCalls);
-          this.reportToolActivity(toolCalls, toolResults, originalCallbacks);
-          await this.handleToolResults(
-            messages,
-            toolCalls,
-            toolResults,
+          const outputs = await this.toolExecutor.execute(functionCalls);
+          this.reportToolActivity(functionCalls, outputs, originalCallbacks);
+          await this.continueWithToolOutputs(
+            input,
+            functionCalls,
+            outputs,
             originalCallbacks,
           );
         } catch (error) {
@@ -111,42 +102,47 @@ export class OpenAIClient {
   }
 
   private reportToolActivity(
-    toolCalls: ToolCall[],
-    toolResults: ToolResult[],
+    functionCalls: FunctionCallItem[],
+    outputs: FunctionCallOutputItem[],
     callbacks: StreamCallbacks,
   ): void {
     if (!callbacks.onToolActivity) return;
 
-    const resultById = new Map(
-      toolResults.map((result) => [result.tool_call_id, result.content]),
+    const outputByCallId = new Map(
+      outputs.map((output) => [output.call_id, output.output]),
     );
 
-    const interactions = toolCalls.map((toolCall) => ({
-      name: toolCall.function.name,
-      arguments: toolCall.function.arguments,
-      result: resultById.get(toolCall.id) ?? "",
+    const interactions = functionCalls.map((functionCall) => ({
+      name: functionCall.name,
+      arguments: functionCall.arguments,
+      result: outputByCallId.get(functionCall.call_id) ?? "",
     }));
 
     callbacks.onToolActivity(interactions);
   }
 
-  private async handleToolResults(
-    messages: OpenAIMessage[],
-    toolCalls: ToolCall[],
-    toolResults: ToolResult[],
+  private async continueWithToolOutputs(
+    input: ResponseInputItem[],
+    functionCalls: FunctionCallItem[],
+    outputs: FunctionCallOutputItem[],
     callbacks: StreamCallbacks,
   ): Promise<void> {
-    const updatedMessages: OpenAIMessage[] = [
-      ...messages,
-      {
-        role: "assistant",
-        content: null,
-        tool_calls: toolCalls,
-      },
-      ...toolResults,
+    const replayedCalls: ResponseInputItem[] = functionCalls.map(
+      ({ call_id, name, arguments: args }) => ({
+        type: "function_call",
+        call_id,
+        name,
+        arguments: args,
+      }),
+    );
+
+    const updatedInput: ResponseInputItem[] = [
+      ...input,
+      ...replayedCalls,
+      ...outputs,
     ];
 
     this.streamProcessor.reset();
-    await this.sendMessage(updatedMessages, callbacks);
+    await this.sendMessage(updatedInput, callbacks);
   }
 }
