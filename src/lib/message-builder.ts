@@ -1,5 +1,9 @@
 import { Message, ImageData, PageContent } from "../types";
-import { OpenAIMessage, OpenAIMessageContent } from "../types/openai";
+import {
+  ResponseContentPart,
+  ResponseInputItem,
+  ResponseMessageItem,
+} from "../types/openai";
 
 export class MessageBuilder {
   buildMessages(
@@ -8,8 +12,8 @@ export class MessageBuilder {
     systemPrompt?: string,
     contextImages?: ImageData[],
     contextPageContent?: PageContent,
-  ): OpenAIMessage[] {
-    const messages: OpenAIMessage[] = [];
+  ): ResponseInputItem[] {
+    const messages: ResponseInputItem[] = [];
 
     if (conversationHistory.length === 0 && systemPrompt) {
       messages.push({
@@ -31,8 +35,10 @@ export class MessageBuilder {
     return messages;
   }
 
-  private convertConversationHistory(history: Message[]): OpenAIMessage[] {
-    return history.map((msg): OpenAIMessage => {
+  private convertConversationHistory(
+    history: Message[],
+  ): ResponseMessageItem[] {
+    return history.map((msg): ResponseMessageItem => {
       let text = msg.content;
       if (msg.sender === "user" && msg.pageContent) {
         const content =
@@ -60,7 +66,7 @@ export class MessageBuilder {
     message: string,
     contextImages?: ImageData[],
     pageContent?: PageContent,
-  ): OpenAIMessage {
+  ): ResponseMessageItem {
     let text = message;
     if (pageContent) {
       const content =
@@ -86,13 +92,13 @@ export class MessageBuilder {
   private buildMultimodalContent(
     text: string,
     images: ImageData[],
-  ): OpenAIMessageContent[] {
-    const content: OpenAIMessageContent[] = [{ type: "text", text }];
+  ): ResponseContentPart[] {
+    const content: ResponseContentPart[] = [{ type: "input_text", text }];
 
     images.forEach((image) => {
       content.push({
-        type: "image_url",
-        image_url: { url: image.dataUrl },
+        type: "input_image",
+        image_url: image.dataUrl,
       });
     });
 

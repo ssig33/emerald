@@ -10,35 +10,15 @@ import {
   Divider,
   FormControlLabel,
   Switch,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Stack,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Delete } from "@mui/icons-material";
-import { useSettings, type Profile } from "../hooks/useSettings";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { useSettings } from "../hooks/useSettings";
+import { MODEL, REASONING_EFFORT } from "../lib/openai/constants";
 
 const ApiKeySettings: React.FC = () => {
-  const {
-    settings,
-    profiles,
-    loading,
-    saveSettings,
-    saveProfile,
-    applyProfile,
-    deleteProfile,
-  } = useSettings();
+  const { settings, loading, saveSettings } = useSettings();
   const [apiKey, setApiKey] = useState(settings.openaiApiKey);
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
-  const [baseUrl, setBaseUrl] = useState(settings.baseUrl);
-  const [model, setModel] = useState(settings.model);
-  const [braveApiKey, setBraveApiKey] = useState(settings.braveApiKey);
   const [showApiKey, setShowApiKey] = useState(false);
   const [s3Endpoint, setS3Endpoint] = useState(settings.s3Endpoint);
   const [s3Region, setS3Region] = useState(settings.s3Region);
@@ -58,9 +38,6 @@ const ApiKeySettings: React.FC = () => {
     if (loading) return;
     setApiKey(settings.openaiApiKey);
     setSystemPrompt(settings.systemPrompt);
-    setBaseUrl(settings.baseUrl);
-    setModel(settings.model);
-    setBraveApiKey(settings.braveApiKey);
     setS3Endpoint(settings.s3Endpoint);
     setS3Region(settings.s3Region);
     setS3Bucket(settings.s3Bucket);
@@ -70,25 +47,9 @@ const ApiKeySettings: React.FC = () => {
     setS3Prefix(settings.s3Prefix);
     setS3PublicBaseUrl(settings.s3PublicBaseUrl);
   }, [loading, settings]);
-  const [showBraveApiKey, setShowBraveApiKey] = useState(false);
-  const [profileName, setProfileName] = useState("");
-  const [profileToApply, setProfileToApply] = useState<Profile | null>(null);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
   >("idle");
-
-  const handleSaveProfile = async () => {
-    const name = profileName.trim();
-    if (!name) return;
-    await saveProfile(name, { baseUrl, openaiApiKey: apiKey, model });
-    setProfileName("");
-  };
-
-  const handleConfirmApply = async () => {
-    if (!profileToApply) return;
-    await applyProfile(profileToApply.id);
-    setProfileToApply(null);
-  };
 
   const handleSave = async () => {
     setSaveStatus("saving");
@@ -96,9 +57,6 @@ const ApiKeySettings: React.FC = () => {
       await saveSettings({
         openaiApiKey: apiKey,
         systemPrompt,
-        baseUrl,
-        model,
-        braveApiKey,
         s3Endpoint,
         s3Region,
         s3Bucket,
@@ -129,14 +87,14 @@ const ApiKeySettings: React.FC = () => {
 
       <TextField
         fullWidth
-        label="API Key"
+        label="OpenAI API Key"
         type={showApiKey ? "text" : "password"}
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
         placeholder="sk-..."
         margin="normal"
         error={apiKey.length > 0 && !isValidApiKey(apiKey)}
-        helperText="API key for OpenAI, OpenRouter, or any compatible provider"
+        helperText="API key for the OpenAI Responses API"
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
@@ -152,138 +110,10 @@ const ApiKeySettings: React.FC = () => {
         }}
       />
 
-      <TextField
-        fullWidth
-        label="Base URL"
-        value={baseUrl}
-        onChange={(e) => setBaseUrl(e.target.value)}
-        placeholder="https://api.openai.com/v1/chat/completions"
-        margin="normal"
-        helperText="Chat Completions endpoint. e.g. OpenRouter: https://openrouter.ai/api/v1/chat/completions"
-      />
-
-      <TextField
-        fullWidth
-        label="Model"
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        placeholder="gpt-5.4"
-        margin="normal"
-        helperText="Model ID. e.g. OpenRouter: anthropic/claude-opus-4.1"
-      />
-
-      <Box
-        sx={{
-          mt: 1,
-          mb: 1,
-          p: 1.5,
-          border: 1,
-          borderColor: "divider",
-          borderRadius: 1,
-        }}
-      >
-        <Typography variant="subtitle2" gutterBottom>
-          Provider Profiles
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Save the current Base URL, API Key and Model as a named profile, then
-          switch providers with one click.
-        </Typography>
-
-        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-          <TextField
-            size="small"
-            fullWidth
-            label="Profile name"
-            value={profileName}
-            onChange={(e) => setProfileName(e.target.value)}
-            placeholder="e.g. OpenRouter Claude"
-          />
-          <Button
-            variant="outlined"
-            onClick={handleSaveProfile}
-            disabled={!profileName.trim() || !baseUrl.trim() || !model.trim()}
-          >
-            Save
-          </Button>
-        </Stack>
-
-        {profiles.length > 0 && (
-          <List dense disablePadding>
-            {profiles.map((profile) => (
-              <ListItem
-                key={profile.id}
-                disableGutters
-                disablePadding
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    aria-label={`delete profile ${profile.name}`}
-                    onClick={() => deleteProfile(profile.id)}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                }
-              >
-                <ListItemButton
-                  onClick={() => setProfileToApply(profile)}
-                  sx={{ borderRadius: 1 }}
-                >
-                  <ListItemText
-                    primary={profile.name}
-                    secondary={profile.model}
-                    primaryTypographyProps={{ noWrap: true }}
-                    secondaryTypographyProps={{ noWrap: true }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Box>
-
-      <Dialog
-        open={profileToApply !== null}
-        onClose={() => setProfileToApply(null)}
-      >
-        <DialogTitle>Apply profile?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Switch the Base URL, API Key and Model to
-            {profileToApply ? ` "${profileToApply.name}"` : ""}?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setProfileToApply(null)}>Cancel</Button>
-          <Button onClick={handleConfirmApply} variant="contained">
-            Apply
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <TextField
-        fullWidth
-        label="Brave Search API Key (optional)"
-        type={showBraveApiKey ? "text" : "password"}
-        value={braveApiKey}
-        onChange={(e) => setBraveApiKey(e.target.value)}
-        placeholder="BSA..."
-        margin="normal"
-        helperText="Set to enable web search. The AI looks things up when needed and cites source URLs."
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton
-                aria-label="toggle brave api key visibility"
-                onClick={() => setShowBraveApiKey(!showBraveApiKey)}
-                edge="end"
-              >
-                {showBraveApiKey ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        Model: {MODEL} (reasoning effort: {REASONING_EFFORT}). Web search is
+        handled by the built-in OpenAI tool.
+      </Typography>
 
       <TextField
         fullWidth
@@ -404,8 +234,6 @@ const ApiKeySettings: React.FC = () => {
           !apiKey ||
           !isValidApiKey(apiKey) ||
           !systemPrompt.trim() ||
-          !baseUrl.trim() ||
-          !model.trim() ||
           saveStatus === "saving"
         }
         sx={{ mt: 2 }}
