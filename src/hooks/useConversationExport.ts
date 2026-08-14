@@ -50,7 +50,11 @@ export const useConversationExport = () => {
 
     try {
       const title = await generateConversationTitle(
-        { apiKey: settings.openaiApiKey },
+        {
+          apiKey: settings.openaiApiKey,
+          model: settings.model,
+          reasoningEffort: settings.reasoningEffort,
+        },
         messages,
       );
       const html = buildConversationHtml(messages, {

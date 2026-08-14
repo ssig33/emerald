@@ -20,6 +20,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
 import ApiKeySettings from "../components/ApiKeySettings";
+import ModelSelector from "../components/ModelSelector";
 import { Message, ImageData, PageContent, ToolInteraction } from "../types";
 import { useApi } from "../hooks/useApi";
 import { useChatThread } from "../hooks/useChatThread";
@@ -226,6 +227,7 @@ const App: React.FC = () => {
           }}
         >
           <ChatArea messages={messages} error={error} />
+          <ModelSelector />
           <InputArea
             onSendMessage={handleSendMessage}
             disabled={messages.some((m) => m.status === "streaming")}

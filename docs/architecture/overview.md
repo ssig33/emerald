@@ -22,7 +22,7 @@ Emerald follows a **modular, layered architecture** that separates concerns and 
 ### 1. UI Layer (`src/components/`)
 
 - **Responsibility**: User interface and user interactions
-- **Key Components**: ChatArea, InputArea, ThreadList, ImageSelector
+- **Key Components**: ChatArea, InputArea, ModelSelector, ThreadList, ImageSelector
 - **Pattern**: Presentational components with minimal business logic
 - **Communication**: Props down, events up
 
@@ -47,8 +47,10 @@ OpenAIClient
 └── MessageBuilder     # Converts to Responses API input items
 ```
 
-The client talks to the OpenAI Responses API only. The model, the endpoint and
-the reasoning effort are fixed in `src/lib/openai/constants.ts`.
+The client talks to the OpenAI Responses API only. The endpoint, the selectable
+models and the selectable reasoning efforts are declared in
+`src/lib/openai/constants.ts`; the active model and reasoning effort come from
+the settings, which the user changes through `ModelSelector`.
 
 #### Tool System (`src/lib/tools/`)
 

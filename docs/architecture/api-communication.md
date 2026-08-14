@@ -7,15 +7,21 @@ is designed around **streaming responses**, **tool execution**, and **modular
 responsibility separation**. The architecture supports real-time conversation
 updates while maintaining robust error handling and extensibility.
 
-Fixed configuration lives in `src/lib/openai/constants.ts`:
+The endpoint, the selectable models and the selectable reasoning efforts live in
+`src/lib/openai/constants.ts`:
 
-| Setting          | Value                                 |
-| ---------------- | ------------------------------------- |
-| Endpoint         | `https://api.openai.com/v1/responses` |
-| Model            | `gpt-5.6-luna`                        |
-| Reasoning effort | `max`                                 |
+| Setting           | Value                                           |
+| ----------------- | ----------------------------------------------- |
+| Endpoint          | `https://api.openai.com/v1/responses`           |
+| Models            | `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`  |
+| Default model     | `gpt-5.6-luna`                                  |
+| Reasoning efforts | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
+| Default effort    | `max`                                           |
 
-The only user-provided API setting is the OpenAI API key.
+The model tiers are surfaced in the UI as Sol, Terra and Luna. The user-provided
+API settings are the OpenAI API key, the model and the reasoning effort; the
+latter two are picked from the chat UI and stored in `chrome.storage.local`
+alongside the other settings.
 
 ## Architecture Components
 
@@ -63,7 +69,7 @@ interface OpenAIClient {
 
 ```json
 {
-  "model": "gpt-5.6-luna",
+  "model": "gpt-5.6-sol",
   "input": [{ "role": "user", "content": "..." }],
   "tools": [
     { "type": "function", "name": "get_current_time" },
@@ -283,15 +289,18 @@ OpenAI function_call → ToolExecutor.execute() → Chrome API Call → function
 ```typescript
 interface OpenAIClientConfig {
   apiKey: string; // Required: OpenAI API authentication
+  model?: ModelId; // Defaults to gpt-5.6-luna
+  reasoningEffort?: ReasoningEffort; // Defaults to max
 }
 ```
 
-Everything else is fixed: model, endpoint, reasoning effort and tools are
-compiled in, so there is no provider, model or endpoint selection to configure.
+The endpoint and the tools are compiled in, so there is no provider or endpoint
+selection to configure.
 
 ### 2. Runtime Configuration
 
 - API key validation
+- Model and reasoning effort selection
 - System prompt
 - Conversation storage (S3 / MinIO) settings
 
