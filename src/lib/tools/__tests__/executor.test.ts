@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ToolExecutor, getAvailableTools } from "../executor";
-import { FunctionCallItem } from "../../../types/openai";
+import { FunctionCallItem, FunctionTool } from "../../../types/openai";
 
 const functionCall = (
   callId: string,
@@ -72,19 +72,78 @@ describe("ToolExecutor", () => {
     });
   });
 
+  describe("browser tools", () => {
+    it("routes a browser tool to the active tab and returns its output", async () => {
+      (chrome.tabs.query as any).mockResolvedValue([
+        { id: 3, url: "https://example.com", title: "Example" },
+      ]);
+      (chrome.tabs.sendMessage as any).mockResolvedValue({
+        ok: true,
+        result: "Title: Example",
+      });
+
+      const results = await toolExecutor.execute([
+        functionCall(
+          "test-id-1",
+          "browser_read_page",
+          '{"selector":null,"max_length":null}',
+        ),
+      ]);
+
+      expect(results).toEqual([
+        {
+          type: "function_call_output",
+          call_id: "test-id-1",
+          output: "Title: Example",
+        },
+      ]);
+    });
+
+    it("feeds a browser tool failure back to the model", async () => {
+      (chrome.tabs.query as any).mockResolvedValue([
+        { id: 3, url: "https://example.com", title: "Example" },
+      ]);
+      (chrome.tabs.sendMessage as any).mockResolvedValue({
+        ok: false,
+        error: "No element at index 9",
+      });
+
+      const results = await toolExecutor.execute([
+        functionCall(
+          "test-id-1",
+          "browser_click",
+          '{"index":9,"selector":null}',
+        ),
+      ]);
+
+      expect(results[0].output).toBe("Error: No element at index 9");
+    });
+
+    it("reports malformed tool arguments instead of crashing", async () => {
+      const results = await toolExecutor.execute([
+        functionCall("test-id-1", "browser_read_page", "{not json"),
+      ]);
+
+      expect(results[0].output).toContain("Invalid JSON arguments");
+    });
+  });
+
   describe("getAvailableTools", () => {
     it("exposes the local function tools in the Responses API format", () => {
       const functionTools = getAvailableTools().filter(
-        (tool) => tool.type === "function",
+        (tool): tool is FunctionTool => tool.type === "function",
       );
 
-      expect(functionTools).toEqual([
-        expect.objectContaining({
-          type: "function",
-          name: "get_current_time",
-          strict: true,
-        }),
+      expect(functionTools.map((tool) => tool.name)).toEqual([
+        "get_current_time",
+        "browser_read_page",
+        "browser_list_elements",
+        "browser_click",
+        "browser_fill",
+        "browser_navigate",
+        "browser_scroll",
       ]);
+      expect(functionTools.every((tool) => tool.strict)).toBe(true);
     });
 
     it("enables the built-in web search tool", () => {
