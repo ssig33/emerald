@@ -146,7 +146,7 @@ describe("OpenAIClient", () => {
       expect(followUpBody.reasoning).toEqual({ effort: "high" });
     });
 
-    it("should offer the local function tool and the built-in web search", async () => {
+    it("should offer the local function tools and the built-in web search", async () => {
       globalThis.fetch = vi
         .fn()
         .mockResolvedValue(createMockResponse([textDelta("test")]));
@@ -157,10 +157,13 @@ describe("OpenAIClient", () => {
         (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
-      expect(requestBody.tools).toEqual([
+      expect(requestBody.tools).toContainEqual(
         expect.objectContaining({ type: "function", name: "get_current_time" }),
-        { type: "web_search" },
-      ]);
+      );
+      expect(requestBody.tools).toContainEqual(
+        expect.objectContaining({ type: "function", name: "browser_click" }),
+      );
+      expect(requestBody.tools).toContainEqual({ type: "web_search" });
     });
 
     it("should handle HTTP errors", async () => {
