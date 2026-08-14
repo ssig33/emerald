@@ -203,6 +203,67 @@ describe("useChatThread", () => {
     expect(result.current.messages[0].content).toBe("Hello! How can I help?");
   });
 
+  it("appends tool interactions to the streaming message", () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockAIMessage);
+    });
+
+    act(() => {
+      result.current.appendToolInteractions([
+        {
+          name: "browser_read_page",
+          arguments: "{}",
+          result: "Title: Example",
+        },
+      ]);
+    });
+
+    act(() => {
+      result.current.appendToolInteractions([
+        { name: "browser_click", arguments: "{}", result: "Clicked." },
+      ]);
+    });
+
+    expect(result.current.messages[0].toolInteractions).toEqual([
+      { name: "browser_read_page", arguments: "{}", result: "Title: Example" },
+      { name: "browser_click", arguments: "{}", result: "Clicked." },
+    ]);
+  });
+
+  it("appendToolInteractions does nothing when there is nothing to log", () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockAIMessage);
+      result.current.appendToolInteractions([]);
+    });
+
+    expect(result.current.messages[0].toolInteractions).toBeUndefined();
+  });
+
+  it("keeps the tool log when the message completes", async () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockAIMessage);
+    });
+
+    act(() => {
+      result.current.appendToolInteractions([
+        { name: "browser_click", arguments: "{}", result: "Clicked." },
+      ]);
+    });
+
+    await act(async () => {
+      result.current.completeLastMessage();
+    });
+
+    expect(result.current.messages[0].status).toBe("done");
+    expect(result.current.messages[0].toolInteractions).toHaveLength(1);
+  });
+
   it("restores the conversation tied to the current group on mount", async () => {
     setActiveTabGroup(42);
     vi.mocked(groupChatStorage.getGroupChat).mockResolvedValueOnce([

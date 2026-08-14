@@ -67,6 +67,23 @@ describe("ChatArea", () => {
     expect(screen.getByText("Typing...")).toBeInTheDocument();
   });
 
+  it("logs the tool actions attached to a message", () => {
+    const messageWithTools: Message = {
+      ...mockMessages[1],
+      toolInteractions: [
+        {
+          name: "browser_click",
+          arguments: '{"index":0,"selector":null}',
+          result: 'Clicked <button> "Log in".',
+        },
+      ],
+    };
+
+    render(<ChatArea messages={[messageWithTools]} />);
+
+    expect(screen.getByText("1 tool action")).toBeInTheDocument();
+  });
+
   it("displays error messages", () => {
     const errorMessage = "API connection error occurred";
     render(<ChatArea messages={[]} error={errorMessage} />);

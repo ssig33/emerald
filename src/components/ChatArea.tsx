@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { Message } from "../types";
 import PersonIcon from "@mui/icons-material/Person";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
+import ToolActivityLog from "./ToolActivityLog";
 
 interface ChatAreaProps {
   messages: Message[];
@@ -76,6 +77,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, error }) => {
                 ))}
               </Box>
             )}
+            {/* Tool calls are logged inline so autonomous actions stay visible */}
+            {message.toolInteractions &&
+              message.toolInteractions.length > 0 && (
+                <ToolActivityLog interactions={message.toolInteractions} />
+              )}
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {message.content}
             </ReactMarkdown>

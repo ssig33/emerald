@@ -16,6 +16,7 @@ interface Tab {
   active?: boolean;
   currentWindow?: boolean;
   groupId?: number;
+  status?: string;
 }
 
 interface RuntimeMessage {
@@ -48,6 +49,8 @@ interface ChromeMock {
       active?: boolean;
       currentWindow?: boolean;
     }) => Promise<Tab[]>;
+    get: (tabId: number) => Promise<Tab>;
+    update: (tabId: number, properties: { url?: string }) => Promise<Tab>;
     captureVisibleTab: (
       windowId?: number,
       options?: any,
@@ -136,6 +139,7 @@ const mockTabs: Tab[] = [
     active: true,
     currentWindow: true,
     groupId: -1,
+    status: "complete",
   },
 ];
 
@@ -162,6 +166,8 @@ const chromeMock: ChromeMock = {
   },
   tabs: {
     query: vi.fn().mockResolvedValue(mockTabs),
+    get: vi.fn().mockResolvedValue(mockTabs[0]),
+    update: vi.fn().mockResolvedValue(mockTabs[0]),
     captureVisibleTab: vi
       .fn()
       .mockImplementation((windowId, options, callback) => {

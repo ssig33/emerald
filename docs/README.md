@@ -8,6 +8,7 @@ Emerald is a Chrome extension that provides an AI assistant interface for web br
 
 - **[Architecture Overview](./architecture/overview.md)** - High-level system design and component relationships
 - **[API Communication](./architecture/api-communication.md)** - OpenAI API integration architecture
+- **[Browser Agent](./architecture/browser-agent.md)** - Tools that let the model drive the active tab
 - **[Testing Strategy](./testing/strategy.md)** - Testing approach and guidelines
 - **[Development Workflow](./development/workflow.md)** - Setup, build, and contribution guidelines
 
@@ -34,7 +35,8 @@ src/
 ├── hooks/              # Custom React hooks
 ├── lib/                # Business logic and utilities
 │   ├── openai/         # OpenAI API integration
-│   ├── tools/          # Chrome extension tools
+│   ├── browser-agent/  # Command contract and side-panel bridge to the page
+│   ├── tools/          # Function tools offered to the model
 │   └── message-builder.ts
 ├── types/              # TypeScript type definitions
 ├── utils/              # Utility functions (chatStorage)
