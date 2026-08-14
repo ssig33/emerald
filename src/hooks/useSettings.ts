@@ -13,6 +13,8 @@ interface Settings {
   systemPrompt: string;
   model: ModelId;
   reasoningEffort: ReasoningEffort;
+  /** Whether the chat-level model pickers are expanded. */
+  modelSelectorOpen: boolean;
   s3Endpoint: string;
   s3Region: string;
   s3Bucket: string;
@@ -29,6 +31,7 @@ const DEFAULT_SETTINGS: Settings = {
     "You are a helpful AI assistant integrated into a Chrome extension called Emerald. You can help users with various tasks while they browse the web. When users provide page content, use it to give more contextual and relevant responses. Use the built-in web search tool whenever up-to-date or external information would help, and cite the source URLs as Markdown links. Be concise but helpful, and adapt your responses to the context of what the user is doing.",
   model: DEFAULT_MODEL,
   reasoningEffort: DEFAULT_REASONING_EFFORT,
+  modelSelectorOpen: false,
   s3Endpoint: "",
   s3Region: "us-east-1",
   s3Bucket: "",
@@ -115,6 +118,10 @@ export const useSettings = () => {
     await saveSettings({ reasoningEffort });
   };
 
+  const updateModelSelectorOpen = async (modelSelectorOpen: boolean) => {
+    await saveSettings({ modelSelectorOpen });
+  };
+
   return {
     settings,
     loading,
@@ -122,6 +129,7 @@ export const useSettings = () => {
     updateSystemPrompt,
     updateModel,
     updateReasoningEffort,
+    updateModelSelectorOpen,
     saveSettings,
   };
 };

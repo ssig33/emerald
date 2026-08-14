@@ -50,7 +50,9 @@ OpenAIClient
 The client talks to the OpenAI Responses API only. The endpoint, the selectable
 models and the selectable reasoning efforts are declared in
 `src/lib/openai/constants.ts`; the active model and reasoning effort come from
-the settings, which the user changes through `ModelSelector`.
+the settings, which the user changes through `ModelSelector`. That component
+keeps its pickers collapsed behind a summary button and stores the expanded
+state in the settings as well.
 
 #### Tool System (`src/lib/tools/`)
 
