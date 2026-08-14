@@ -2,24 +2,36 @@ import {
   ApiError,
   FunctionCallItem,
   FunctionCallOutputItem,
+  ReasoningEffort,
   ResponseInputItem,
   ResponsesRequest,
 } from "../../types/openai";
-import { MODEL, REASONING_EFFORT, RESPONSES_URL } from "./constants";
+import {
+  DEFAULT_MODEL,
+  DEFAULT_REASONING_EFFORT,
+  ModelId,
+  RESPONSES_URL,
+} from "./constants";
 import { StreamProcessor, StreamCallbacks } from "./stream-processor";
 import { ToolExecutor, getAvailableTools } from "../tools/executor";
 
 export interface OpenAIClientConfig {
   apiKey: string;
+  model?: ModelId;
+  reasoningEffort?: ReasoningEffort;
 }
 
 export class OpenAIClient {
   private apiKey: string;
+  private model: ModelId;
+  private reasoningEffort: ReasoningEffort;
   private streamProcessor: StreamProcessor;
   private toolExecutor: ToolExecutor;
 
   constructor(config: OpenAIClientConfig) {
     this.apiKey = config.apiKey;
+    this.model = config.model ?? DEFAULT_MODEL;
+    this.reasoningEffort = config.reasoningEffort ?? DEFAULT_REASONING_EFFORT;
     this.streamProcessor = new StreamProcessor();
     this.toolExecutor = new ToolExecutor();
   }
@@ -56,11 +68,11 @@ export class OpenAIClient {
 
   private buildRequest(input: ResponseInputItem[]): ResponsesRequest {
     return {
-      model: MODEL,
+      model: this.model,
       input,
       tools: getAvailableTools(),
       tool_choice: "auto",
-      reasoning: { effort: REASONING_EFFORT },
+      reasoning: { effort: this.reasoningEffort },
       stream: true,
     };
   }

@@ -61,6 +61,23 @@ describe("generateConversationTitle", () => {
     expect(body.stream).toBe(false);
   });
 
+  it("uses the configured model and reasoning effort", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(mockResponse("A title"));
+
+    await generateConversationTitle(
+      { apiKey: "sk-test", model: "gpt-5.6-sol", reasoningEffort: "low" },
+      [makeMessage("user", "hello")],
+    );
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body.model).toBe("gpt-5.6-sol");
+    expect(body.reasoning).toEqual({ effort: "low" });
+  });
+
   it("returns null when there is no usable content", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
