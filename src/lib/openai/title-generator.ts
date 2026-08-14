@@ -1,8 +1,16 @@
 import { Message } from "../../types";
-import { MODEL, REASONING_EFFORT, RESPONSES_URL } from "./constants";
+import { ReasoningEffort } from "../../types/openai";
+import {
+  DEFAULT_MODEL,
+  DEFAULT_REASONING_EFFORT,
+  ModelId,
+  RESPONSES_URL,
+} from "./constants";
 
 export interface TitleGeneratorConfig {
   apiKey: string;
+  model?: ModelId;
+  reasoningEffort?: ReasoningEffort;
 }
 
 const MAX_CHARS_PER_MESSAGE = 600;
@@ -64,8 +72,10 @@ export async function generateConversationTitle(
         Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
-        model: MODEL,
-        reasoning: { effort: REASONING_EFFORT },
+        model: config.model ?? DEFAULT_MODEL,
+        reasoning: {
+          effort: config.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
+        },
         stream: false,
         input: [
           {

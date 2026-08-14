@@ -24,10 +24,24 @@ interface RuntimeMessage {
   [key: string]: any;
 }
 
+interface StorageChange {
+  oldValue?: any;
+  newValue?: any;
+}
+
+type StorageChangedListener = (
+  changes: Record<string, StorageChange>,
+  areaName: string,
+) => void;
+
 interface ChromeMock {
   storage: {
     local: StorageArea;
     session: StorageArea;
+    onChanged: {
+      addListener: (listener: StorageChangedListener) => void;
+      removeListener: (listener: StorageChangedListener) => void;
+    };
   };
   tabs: {
     query: (queryInfo: {
@@ -70,6 +84,16 @@ interface ChromeMock {
 
 const mockStorage: Record<string, any> = {};
 const mockSessionStorage: Record<string, any> = {};
+
+const storageListeners = new Set<StorageChangedListener>();
+
+/** Deliver a storage change to everything listening on chrome.storage.onChanged. */
+const emitStorageChange = (
+  changes: Record<string, StorageChange>,
+  areaName = "local",
+) => {
+  storageListeners.forEach((listener) => listener(changes, areaName));
+};
 
 const createStorageArea = (store: Record<string, any>): StorageArea => ({
   get: vi.fn().mockImplementation(async (key) => {
@@ -127,6 +151,14 @@ const chromeMock: ChromeMock = {
   storage: {
     local: createStorageArea(mockStorage),
     session: createStorageArea(mockSessionStorage),
+    onChanged: {
+      addListener: vi.fn().mockImplementation((listener) => {
+        storageListeners.add(listener);
+      }),
+      removeListener: vi.fn().mockImplementation((listener) => {
+        storageListeners.delete(listener);
+      }),
+    },
   },
   tabs: {
     query: vi.fn().mockResolvedValue(mockTabs),
@@ -156,5 +188,5 @@ const chromeMock: ChromeMock = {
 
 (globalThis as any).chrome = chromeMock;
 
-export { chromeMock };
+export { chromeMock, emitStorageChange };
 export default chromeMock;
