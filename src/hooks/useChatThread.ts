@@ -68,6 +68,27 @@ export const useChatThread = () => {
     });
   };
 
+  // Tools run while the answer is still streaming, so their log lands in the
+  // chat as it happens rather than only once the message is finished.
+  const appendToolInteractions = (interactions: ToolInteraction[]) => {
+    if (interactions.length === 0) return;
+
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+
+      const newMessages = [...prev];
+      const lastMessage = newMessages[newMessages.length - 1];
+      newMessages[newMessages.length - 1] = {
+        ...lastMessage,
+        toolInteractions: [
+          ...(lastMessage.toolInteractions ?? []),
+          ...interactions,
+        ],
+      };
+      return newMessages;
+    });
+  };
+
   const completeLastMessage = (toolInteractions?: ToolInteraction[]) => {
     setMessages((prev) => {
       const newMessages = [...prev];
@@ -101,6 +122,7 @@ export const useChatThread = () => {
     messages,
     addMessage,
     appendToLastMessage,
+    appendToolInteractions,
     completeLastMessage,
     clearCurrentGroupChat,
   };

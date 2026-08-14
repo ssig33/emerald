@@ -7,6 +7,8 @@ AI assistant browser extension built on the OpenAI Responses API. Supports Chrom
 - Chat with GPT-5.6 Sol (`gpt-5.6-sol`), Terra (`gpt-5.6-terra`) or Luna (`gpt-5.6-luna`), switchable from the chat UI
 - Reasoning effort selectable from the chat UI (`none`, `low`, `medium`, `high`, `xhigh`, `max`)
 - Web search through OpenAI's built-in `web_search` tool
+- Browser agent: the assistant reads the DOM of the active tab, lists what it can
+  click, fills forms and navigates on its own, and logs every action in the chat
 - Screen capture and image analysis
 - Page context integration
 - Conversation history
@@ -33,6 +35,20 @@ effort are picked above the chat input, behind a summary button that expands the
 pickers when you need them. The selection and the expanded state are stored in
 extension storage, so they persist across restarts and apply to every
 conversation.
+
+## Browser agent
+
+The assistant can drive the tab the side panel is open on. It reads the page
+structure, lists the links, buttons and form controls it can act on, then clicks,
+types and navigates. There is no headless browser involved: the extension already
+runs in the browser, so the commands execute in the content script of the page.
+
+These tools fire without asking for confirmation, so the assistant can work
+through a task on its own. Every call is written into the chat log — expand the
+"tool actions" chip under an answer to see what ran and what it returned.
+
+Pages without a content script (`chrome://`, `about:`, the extension gallery)
+cannot be driven. See [docs/architecture/browser-agent.md](./docs/architecture/browser-agent.md).
 
 ## License
 

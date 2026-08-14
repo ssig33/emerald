@@ -6,6 +6,11 @@ import {
   ToolExecutionError,
   WebSearchTool,
 } from "../../types/openai";
+import {
+  BROWSER_TOOLS,
+  executeBrowserTool,
+  isBrowserToolName,
+} from "./browser-tools";
 
 export const AVAILABLE_TOOLS: FunctionTool[] = [
   {
@@ -21,6 +26,7 @@ export const AVAILABLE_TOOLS: FunctionTool[] = [
     },
     strict: true,
   },
+  ...BROWSER_TOOLS,
 ];
 
 /**
@@ -60,6 +66,17 @@ export class ToolExecutor {
   private async executeSingleTool(
     functionCall: FunctionCallItem,
   ): Promise<FunctionCallOutputItem> {
+    if (isBrowserToolName(functionCall.name)) {
+      return {
+        type: "function_call_output",
+        call_id: functionCall.call_id,
+        output: await executeBrowserTool(
+          functionCall.name,
+          this.parseArguments(functionCall),
+        ),
+      };
+    }
+
     switch (functionCall.name) {
       case "get_current_time":
         return this.executeGetCurrentTime(functionCall.call_id);
@@ -68,6 +85,23 @@ export class ToolExecutor {
           `Unknown tool: ${functionCall.name}`,
           functionCall.name,
         );
+    }
+  }
+
+  private parseArguments(
+    functionCall: FunctionCallItem,
+  ): Record<string, unknown> {
+    if (!functionCall.arguments) return {};
+
+    try {
+      const parsed = JSON.parse(functionCall.arguments);
+      return typeof parsed === "object" && parsed !== null ? parsed : {};
+    } catch (error) {
+      throw new ToolExecutionError(
+        `Invalid JSON arguments for ${functionCall.name}: ${functionCall.arguments}`,
+        functionCall.name,
+        error instanceof Error ? error : undefined,
+      );
     }
   }
 

@@ -64,6 +64,7 @@ const App: React.FC = () => {
     messages,
     addMessage,
     appendToLastMessage,
+    appendToolInteractions,
     completeLastMessage,
     clearCurrentGroupChat,
   } = useChatThread();
@@ -125,8 +126,6 @@ const App: React.FC = () => {
       addMessage(aiMessage);
       setInputValue(""); // Clear input field
 
-      const collectedInteractions: ToolInteraction[] = [];
-
       const contextToSend:
         { images?: ImageData[]; pageContent?: PageContent } | undefined =
         (images && images.length > 0) || pageContent
@@ -148,11 +147,11 @@ const App: React.FC = () => {
         },
         // onComplete: response completed
         () => {
-          completeLastMessage(collectedInteractions);
+          completeLastMessage();
         },
-        // onToolActivity: capture hidden execution context
+        // onToolActivity: log every tool call into the chat as it runs
         (interactions: ToolInteraction[]) => {
-          collectedInteractions.push(...interactions);
+          appendToolInteractions(interactions);
         },
       );
     },
@@ -160,6 +159,7 @@ const App: React.FC = () => {
       sendMessage,
       addMessage,
       appendToLastMessage,
+      appendToolInteractions,
       completeLastMessage,
       messages,
     ],

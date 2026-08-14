@@ -36,7 +36,7 @@
     "tabs",
     "tabGroups"
   ],
-  "{{firefox}}.permissions": ["activeTab", "storage", "scripting"],
+  "{{firefox}}.permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
   "{{firefox}}.browser_specific_settings": {
     "gecko": {

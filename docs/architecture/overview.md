@@ -57,9 +57,18 @@ state in the settings as well.
 #### Tool System (`src/lib/tools/`)
 
 - **ToolExecutor**: Executes the local function tools
-- **Local Tools**: `get_current_time`
+- **Local Tools**: `get_current_time` and the browser agent tools
 - **Hosted Tools**: OpenAI's built-in `web_search`, resolved server side
 - **Pattern**: Strategy pattern for tool implementations
+
+#### Browser Agent (`src/lib/browser-agent/`, `src/content/browser-agent.ts`)
+
+The browser tools (`browser_read_page`, `browser_list_elements`,
+`browser_click`, `browser_fill`, `browser_navigate`, `browser_scroll`) let the
+model operate the active tab. They run without user confirmation, and every call
+is logged into the chat by `ToolActivityLog`. The side panel sends commands
+through `browser-agent/bridge.ts`; the content script executes them against the
+real DOM. See [Browser Agent](./browser-agent.md).
 
 ### 4. Type System (`src/types/`)
 
@@ -79,6 +88,8 @@ User Input → InputArea → useApi → OpenAIClient → StreamProcessor → UI 
 
 ```
 OpenAI Tool Call → ToolExecutor → Chrome API → Tool Result → OpenAI → Response
+                                      │
+                                      └─ browser tools → content script → DOM
 ```
 
 ### State Management

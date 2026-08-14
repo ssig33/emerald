@@ -1,9 +1,17 @@
 import { startRectangleSelection } from "./capture";
+import { handleBrowserAgentCommand } from "./browser-agent";
+import { BROWSER_AGENT_ACTION } from "../lib/browser-agent/types";
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   console.log("Content script received message:", request);
 
   switch (request.action) {
+    case BROWSER_AGENT_ACTION:
+      // Answered synchronously: a command that navigates would otherwise tear
+      // the content script down before the response reaches the side panel.
+      sendResponse(handleBrowserAgentCommand(request.command));
+      break;
+
     case "getPageInfo":
       sendResponse({
         url: window.location.href,
