@@ -78,7 +78,7 @@ describe("OpenAIClient", () => {
       expect(onComplete).toHaveBeenCalled();
     });
 
-    it("should always request gpt-5.6-luna with max reasoning effort", async () => {
+    it("should fall back to gpt-5.6-luna with max reasoning effort", async () => {
       globalThis.fetch = vi
         .fn()
         .mockResolvedValue(createMockResponse([textDelta("test")]));
@@ -94,6 +94,56 @@ describe("OpenAIClient", () => {
       expect(requestBody.input).toEqual(mockInput);
       expect(requestBody.tool_choice).toBe("auto");
       expect(requestBody.stream).toBe(true);
+    });
+
+    it("should request the configured model and reasoning effort", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      const configured = new OpenAIClient({
+        apiKey: mockApiKey,
+        model: "gpt-5.6-sol",
+        reasoningEffort: "medium",
+      });
+      await configured.sendMessage(mockInput, {});
+
+      const requestBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[0][1].body,
+      );
+
+      expect(requestBody.model).toBe("gpt-5.6-sol");
+      expect(requestBody.reasoning).toEqual({ effort: "medium" });
+    });
+
+    it("should keep the configured model on the tool-output follow-up", async () => {
+      const firstResponse = createMockResponse([
+        functionCallDone("call_1", "get_current_time", "{}"),
+        'data: {"type":"response.completed"}\n',
+      ]);
+      const secondResponse = createMockResponse([
+        textDelta("It is late."),
+        'data: {"type":"response.completed"}\n',
+      ]);
+
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(firstResponse)
+        .mockResolvedValueOnce(secondResponse);
+
+      const configured = new OpenAIClient({
+        apiKey: mockApiKey,
+        model: "gpt-5.6-terra",
+        reasoningEffort: "high",
+      });
+      await configured.sendMessage(mockInput, {});
+
+      const followUpBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[1][1].body,
+      );
+
+      expect(followUpBody.model).toBe("gpt-5.6-terra");
+      expect(followUpBody.reasoning).toEqual({ effort: "high" });
     });
 
     it("should offer the local function tool and the built-in web search", async () => {

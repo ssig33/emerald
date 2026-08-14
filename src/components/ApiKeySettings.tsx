@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useSettings } from "../hooks/useSettings";
-import { MODEL, REASONING_EFFORT } from "../lib/openai/constants";
+import { modelLabel } from "../lib/openai/constants";
 
 const ApiKeySettings: React.FC = () => {
   const { settings, loading, saveSettings } = useSettings();
@@ -111,8 +111,9 @@ const ApiKeySettings: React.FC = () => {
       />
 
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        Model: {MODEL} (reasoning effort: {REASONING_EFFORT}). Web search is
-        handled by the built-in OpenAI tool.
+        Model: {modelLabel(settings.model)} ({settings.model}, reasoning effort:{" "}
+        {settings.reasoningEffort}). Pick the model and the reasoning effort
+        above the chat input. Web search is handled by the built-in OpenAI tool.
       </Typography>
 
       <TextField
