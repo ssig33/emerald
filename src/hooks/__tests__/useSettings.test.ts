@@ -25,6 +25,7 @@ describe("useSettings", () => {
     expect(result.current.settings.s3Region).toBe("us-east-1");
     expect(result.current.settings.model).toBe("gpt-5.6-luna");
     expect(result.current.settings.reasoningEffort).toBe("max");
+    expect(result.current.settings.modelSelectorOpen).toBe(false);
   });
 
   it("restores the stored model and reasoning effort", async () => {
@@ -70,6 +71,31 @@ describe("useSettings", () => {
         reasoningEffort: "high",
       }),
     });
+  });
+
+  it("persists the model selector expanded state", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    await act(async () => {
+      await result.current.updateModelSelectorOpen(true);
+    });
+
+    expect(result.current.settings.modelSelectorOpen).toBe(true);
+    expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
+      settings: expect.objectContaining({ modelSelectorOpen: true }),
+    });
+  });
+
+  it("restores the stored model selector expanded state", async () => {
+    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
+      settings: { modelSelectorOpen: true },
+    });
+
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    expect(result.current.settings.modelSelectorOpen).toBe(true);
   });
 
   it("picks up settings written elsewhere", async () => {

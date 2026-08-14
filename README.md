@@ -29,8 +29,10 @@ Load `dist/firefox/manifest.json` as a temporary add-on from `about:debugging#/r
 ## Configuration
 
 Set your OpenAI API key in the extension settings. The model and the reasoning
-effort are picked above the chat input; both are stored in extension storage, so
-they persist across restarts and apply to every conversation.
+effort are picked above the chat input, behind a summary button that expands the
+pickers when you need them. The selection and the expanded state are stored in
+extension storage, so they persist across restarts and apply to every
+conversation.
 
 ## License
 
