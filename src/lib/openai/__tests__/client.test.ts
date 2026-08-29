@@ -230,6 +230,54 @@ describe("OpenAIClient", () => {
       expect(onComplete).toHaveBeenCalledTimes(1);
     });
 
+    it("should hand a screenshot back to the model as an image", async () => {
+      const firstResponse = createMockResponse([
+        functionCallDone(
+          "call_1",
+          "browser_screenshot",
+          '{"grid":null,"max_width":null}',
+        ),
+        'data: {"type":"response.completed"}\n',
+      ]);
+      const secondResponse = createMockResponse([
+        textDelta("I can see the page."),
+        'data: {"type":"response.completed"}\n',
+      ]);
+
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(firstResponse)
+        .mockResolvedValueOnce(secondResponse);
+
+      const onToolActivity = vi.fn();
+
+      await client.sendMessage(mockInput, { onToolActivity });
+
+      const followUpBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[1][1].body,
+      );
+      const imageMessage = followUpBody.input.at(-1);
+
+      expect(imageMessage.role).toBe("user");
+      expect(imageMessage.content).toEqual([
+        {
+          type: "input_text",
+          text: expect.stringContaining("Image returned by browser_screenshot"),
+        },
+        {
+          type: "input_image",
+          image_url: expect.stringMatching(/^data:image\//),
+        },
+      ]);
+
+      expect(onToolActivity).toHaveBeenCalledWith([
+        expect.objectContaining({
+          name: "browser_screenshot",
+          image: expect.stringMatching(/^data:image\//),
+        }),
+      ]);
+    });
+
     it("should handle multimodal input", async () => {
       const multimodalInput: ResponseInputItem[] = [
         {

@@ -19,6 +19,12 @@ const sendMessage = () =>
 /** Last command object handed to the content script. */
 const lastCommand = () => sendMessage().mock.calls.at(-1)![1].command;
 
+/** Runs a tool and returns the text it answers with. */
+const runTool = async (
+  name: string,
+  args: Record<string, unknown>,
+): Promise<string> => (await executeBrowserTool(name, args)).text;
+
 describe("browser tools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -32,9 +38,13 @@ describe("browser tools", () => {
     it("declares every browser tool in strict Responses API format", () => {
       expect(BROWSER_TOOLS.map((tool) => tool.name)).toEqual([
         "browser_read_page",
+        "browser_screenshot",
         "browser_list_elements",
         "browser_click",
+        "browser_hover",
+        "browser_describe_point",
         "browser_fill",
+        "browser_press_key",
         "browser_navigate",
         "browser_scroll",
       ]);
@@ -58,7 +68,7 @@ describe("browser tools", () => {
 
   describe("execution", () => {
     it("sends a readPage command to the active tab", async () => {
-      const result = await executeBrowserTool("browser_read_page", {
+      const result = await runTool("browser_read_page", {
         selector: "#main",
         max_length: 500,
       });
@@ -71,7 +81,7 @@ describe("browser tools", () => {
     });
 
     it("passes nulls through for omitted optional arguments", async () => {
-      await executeBrowserTool("browser_list_elements", {
+      await runTool("browser_list_elements", {
         filter: null,
         max_elements: null,
       });
@@ -84,12 +94,14 @@ describe("browser tools", () => {
     });
 
     it("accepts an index that arrives as a string", async () => {
-      await executeBrowserTool("browser_click", { index: "3", selector: null });
+      await runTool("browser_click", { index: "3", selector: null });
 
       expect(lastCommand()).toEqual({
         name: "click",
         index: 3,
         selector: null,
+        x: null,
+        y: null,
       });
     });
 
@@ -101,7 +113,7 @@ describe("browser tools", () => {
       });
       sendMessage().mockResolvedValue({ ok: true, result: "Clicked <a>." });
 
-      const result = await executeBrowserTool("browser_click", {
+      const result = await runTool("browser_click", {
         index: 0,
         selector: null,
       });
@@ -122,7 +134,7 @@ describe("browser tools", () => {
         title: "Next",
       });
 
-      const result = await executeBrowserTool("browser_click", {
+      const result = await runTool("browser_click", {
         index: 0,
         selector: null,
       });
@@ -130,8 +142,71 @@ describe("browser tools", () => {
       expect(result).toContain("Navigated to https://example.com/next");
     });
 
+    it("clicks at viewport coordinates", async () => {
+      await runTool("browser_click", {
+        index: null,
+        selector: null,
+        x: 120,
+        y: 240,
+      });
+
+      expect(lastCommand()).toEqual({
+        name: "click",
+        index: null,
+        selector: null,
+        x: 120,
+        y: 240,
+      });
+    });
+
+    it("hovers without waiting for a navigation", async () => {
+      await runTool("browser_hover", {
+        index: null,
+        selector: null,
+        x: 10,
+        y: 20,
+      });
+
+      expect(lastCommand()).toEqual({
+        name: "hover",
+        index: null,
+        selector: null,
+        x: 10,
+        y: 20,
+      });
+      expect(chrome.tabs.get).not.toHaveBeenCalled();
+    });
+
+    it("describes a point", async () => {
+      await runTool("browser_describe_point", { x: 5, y: 6 });
+
+      expect(lastCommand()).toEqual({ name: "describePoint", x: 5, y: 6 });
+    });
+
+    it("refuses a point without coordinates", async () => {
+      await expect(
+        runTool("browser_describe_point", { x: null, y: null }),
+      ).rejects.toThrow('Missing required "x" argument.');
+    });
+
+    it("sends a key press and follows the page it may load", async () => {
+      await runTool("browser_press_key", {
+        key: "Enter",
+        index: null,
+        selector: null,
+      });
+
+      expect(lastCommand()).toEqual({
+        name: "pressKey",
+        key: "Enter",
+        index: null,
+        selector: null,
+      });
+      expect(chrome.tabs.get).toHaveBeenCalledWith(7);
+    });
+
     it("does not wait for a navigation on a plain fill", async () => {
-      await executeBrowserTool("browser_fill", {
+      await runTool("browser_fill", {
         index: 2,
         selector: null,
         value: "emerald",
@@ -149,7 +224,7 @@ describe("browser tools", () => {
     });
 
     it("waits for the page after a submitting fill", async () => {
-      await executeBrowserTool("browser_fill", {
+      await runTool("browser_fill", {
         index: 2,
         selector: null,
         value: "emerald",
@@ -166,7 +241,7 @@ describe("browser tools", () => {
         title: "Other",
       });
 
-      const result = await executeBrowserTool("browser_navigate", {
+      const result = await runTool("browser_navigate", {
         url: "https://example.org/",
       });
 
@@ -178,7 +253,7 @@ describe("browser tools", () => {
 
     it("rejects an unknown scroll direction", async () => {
       await expect(
-        executeBrowserTool("browser_scroll", {
+        runTool("browser_scroll", {
           direction: "sideways",
           index: null,
           selector: null,
@@ -193,7 +268,7 @@ describe("browser tools", () => {
       });
 
       await expect(
-        executeBrowserTool("browser_read_page", {
+        runTool("browser_read_page", {
           selector: null,
           max_length: null,
         }),
@@ -204,18 +279,79 @@ describe("browser tools", () => {
       sendMessage().mockResolvedValue(undefined);
 
       await expect(
-        executeBrowserTool("browser_read_page", {
+        runTool("browser_read_page", {
           selector: null,
           max_length: null,
         }),
       ).rejects.toThrow("no content script is running in the active tab");
     });
 
+    it("captures the tab and hands the picture back", async () => {
+      sendMessage().mockResolvedValue({
+        ok: true,
+        result: JSON.stringify({
+          width: 1280,
+          height: 720,
+          devicePixelRatio: 2,
+          scrollX: 0,
+          scrollY: 400,
+          pageWidth: 1280,
+          pageHeight: 4000,
+          title: "Example",
+          url: "https://example.com/",
+        }),
+      });
+
+      const result = await executeBrowserTool("browser_screenshot", {
+        grid: true,
+        max_width: null,
+      });
+
+      expect(lastCommand()).toEqual({ name: "viewportInfo" });
+      expect(chrome.tabs.captureVisibleTab).toHaveBeenCalled();
+      expect(result.image?.dataUrl).toMatch(/^data:image\//);
+      expect(result.image?.thumbnailDataUrl).toMatch(/^data:image\//);
+      expect(result.text).toContain("Screenshot of https://example.com/");
+      expect(result.text).toContain("Viewport 1280x720 CSS px");
+      expect(result.text).toContain("scrolled to (0, 400)");
+    });
+
+    it("still captures when no content script answers", async () => {
+      sendMessage().mockResolvedValue(undefined);
+
+      const result = await executeBrowserTool("browser_screenshot", {
+        grid: null,
+        max_width: null,
+      });
+
+      expect(result.image?.dataUrl).toMatch(/^data:image\//);
+      expect(result.text).toContain("viewport geometry is unknown");
+    });
+
+    it("reports a capture the browser refused", async () => {
+      (chrome.tabs.captureVisibleTab as any).mockImplementation(
+        (_windowId: number, _options: unknown, callback: () => void) => {
+          (chrome.runtime as any).lastError = {
+            message: "Cannot access contents of the page",
+          };
+          callback();
+          (chrome.runtime as any).lastError = null;
+        },
+      );
+
+      await expect(
+        executeBrowserTool("browser_screenshot", {
+          grid: null,
+          max_width: null,
+        }),
+      ).rejects.toThrow("The tab could not be captured");
+    });
+
     it("fails when there is no active tab", async () => {
       (chrome.tabs.query as any).mockResolvedValue([]);
 
       await expect(
-        executeBrowserTool("browser_read_page", {
+        runTool("browser_read_page", {
           selector: null,
           max_length: null,
         }),

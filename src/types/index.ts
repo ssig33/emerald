@@ -13,6 +13,8 @@ export interface ToolInteraction {
   name: string;
   arguments: string;
   result: string;
+  /** Thumbnail of the picture the call returned, e.g. a screenshot. */
+  image?: string;
 }
 
 export interface ImageData {

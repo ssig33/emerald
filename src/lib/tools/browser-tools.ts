@@ -6,11 +6,17 @@
 import { FunctionTool } from "../../types/openai";
 import { ScrollDirection } from "../browser-agent/types";
 import {
+  TabState,
   getActiveTab,
   navigateTab,
   sendBrowserCommand,
   sendNavigatingCommand,
 } from "../browser-agent/bridge";
+import {
+  DEFAULT_MAX_WIDTH,
+  captureScreenshot,
+  describeScreenshot,
+} from "../browser-agent/screenshot";
 
 const SCROLL_DIRECTIONS: ScrollDirection[] = [
   "top",
@@ -19,6 +25,19 @@ const SCROLL_DIRECTIONS: ScrollDirection[] = [
   "down",
   "element",
 ];
+
+/** A picture produced by a tool, on its way to the model and to the chat log. */
+export interface ToolImage {
+  dataUrl: string;
+  thumbnailDataUrl: string;
+  /** Caption sent alongside the image. */
+  description: string;
+}
+
+export interface BrowserToolResult {
+  text: string;
+  image?: ToolImage;
+}
 
 export const BROWSER_TOOLS: FunctionTool[] = [
   {
@@ -41,6 +60,30 @@ export const BROWSER_TOOLS: FunctionTool[] = [
         },
       },
       required: ["selector", "max_length"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "browser_screenshot",
+    description:
+      "Take a screenshot of the visible area of the active tab and look at it. Use this whenever the layout matters, when the DOM outline is hard to make sense of (canvas, custom widgets, dense apps), or to check what actually happened after an action. The image covers the viewport and is scaled so that one image pixel is one CSS pixel, so any x/y read off it can be passed straight to browser_click, browser_hover or browser_describe_point. Only the visible part is captured: scroll and take another one to see the rest.",
+    parameters: {
+      type: "object",
+      properties: {
+        grid: {
+          type: ["boolean", "null"],
+          description:
+            "Draw a labelled coordinate grid every 100 CSS pixels over the image. Turn it on when you intend to click by coordinates. Null means no grid.",
+        },
+        max_width: {
+          type: ["integer", "null"],
+          description:
+            "Widest image to return, in pixels. Null uses the default of 1280, which matches most viewports one to one.",
+        },
+      },
+      required: ["grid", "max_width"],
       additionalProperties: false,
     },
     strict: true,
@@ -73,21 +116,83 @@ export const BROWSER_TOOLS: FunctionTool[] = [
     type: "function",
     name: "browser_click",
     description:
-      "Click an element in the active tab, identified either by its index from browser_list_elements or by a CSS selector. The element is scrolled into view first. Reports where the page ended up, so a click that navigates is easy to follow.",
+      "Click an element in the active tab, identified by its index from browser_list_elements, by a CSS selector, or by x/y viewport coordinates read off a browser_screenshot. Index and selector scroll the element into view first; coordinates click exactly where they point, so do not scroll between the screenshot and the click. Reports where the page ended up, so a click that navigates is easy to follow.",
     parameters: {
       type: "object",
       properties: {
         index: {
           type: ["integer", "null"],
           description:
-            "Index from the most recent browser_list_elements call. Preferred over selector.",
+            "Index from the most recent browser_list_elements call. Preferred when the element is listed.",
         },
         selector: {
           type: ["string", "null"],
           description: "CSS selector of the element, used when index is null.",
         },
+        x: {
+          type: ["integer", "null"],
+          description:
+            "Horizontal viewport coordinate in CSS pixels, used when index and selector are null. Requires y.",
+        },
+        y: {
+          type: ["integer", "null"],
+          description: "Vertical viewport coordinate in CSS pixels.",
+        },
       },
-      required: ["index", "selector"],
+      required: ["index", "selector", "x", "y"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "browser_hover",
+    description:
+      "Move the pointer over an element or over x/y viewport coordinates in the active tab, without clicking. Use this to open menus, tooltips and other things that only appear on hover, then take a screenshot to see what came up.",
+    parameters: {
+      type: "object",
+      properties: {
+        index: {
+          type: ["integer", "null"],
+          description: "Index from the most recent browser_list_elements call.",
+        },
+        selector: {
+          type: ["string", "null"],
+          description: "CSS selector of the element, used when index is null.",
+        },
+        x: {
+          type: ["integer", "null"],
+          description:
+            "Horizontal viewport coordinate in CSS pixels, used when index and selector are null. Requires y.",
+        },
+        y: {
+          type: ["integer", "null"],
+          description: "Vertical viewport coordinate in CSS pixels.",
+        },
+      },
+      required: ["index", "selector", "x", "y"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "browser_describe_point",
+    description:
+      "Name what sits under a pair of viewport coordinates, without touching it. Answers with the stack of elements under the point, their labels, their boxes and their CSS selectors. Use it to confirm that a spot picked from a screenshot really is the control you mean before clicking it.",
+    parameters: {
+      type: "object",
+      properties: {
+        x: {
+          type: "integer",
+          description: "Horizontal viewport coordinate in CSS pixels.",
+        },
+        y: {
+          type: "integer",
+          description: "Vertical viewport coordinate in CSS pixels.",
+        },
+      },
+      required: ["x", "y"],
       additionalProperties: false,
     },
     strict: true,
@@ -127,6 +232,34 @@ export const BROWSER_TOOLS: FunctionTool[] = [
   },
   {
     type: "function",
+    name: "browser_press_key",
+    description:
+      'Send a single key press to the active tab: "Enter" to confirm, "Escape" to dismiss an overlay, "Tab" to move on, "ArrowDown" to walk an autocomplete list. Without an index or a selector the key goes to whatever holds the focus. Use browser_fill to enter text.',
+    parameters: {
+      type: "object",
+      properties: {
+        key: {
+          type: "string",
+          description:
+            'KeyboardEvent key value, e.g. "Enter", "Escape", "Tab", "ArrowDown" or a single character.',
+        },
+        index: {
+          type: ["integer", "null"],
+          description:
+            "Index of the element to send the key to. Null uses the focused element.",
+        },
+        selector: {
+          type: ["string", "null"],
+          description: "CSS selector of that element, used when index is null.",
+        },
+      },
+      required: ["key", "index", "selector"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
     name: "browser_navigate",
     description:
       "Open a URL in the active tab and wait for it to finish loading. Use this to start a task on a known page, then read it with browser_read_page.",
@@ -147,7 +280,7 @@ export const BROWSER_TOOLS: FunctionTool[] = [
     type: "function",
     name: "browser_scroll",
     description:
-      'Scroll the active tab. Use "down" or "up" to move by one viewport (which also triggers lazy loading), "top" or "bottom" to jump, or "element" together with an index or selector to bring one element into view.',
+      'Scroll the active tab. Use "down" or "up" to move by one viewport (which also triggers lazy loading), "top" or "bottom" to jump, or "element" together with an index or selector to bring one element into view. Scrolling invalidates the coordinates of the last screenshot, so take a new one afterwards.',
     parameters: {
       type: "object",
       properties: {
@@ -208,6 +341,14 @@ function optionalNumber(args: Arguments, key: string): number | null {
   return null;
 }
 
+function requiredNumber(args: Arguments, key: string): number {
+  const value = optionalNumber(args, key);
+  if (value === null) {
+    throw new Error(`Missing required "${key}" argument.`);
+  }
+  return value;
+}
+
 function optionalBoolean(args: Arguments, key: string): boolean | null {
   const value = args[key];
   if (typeof value === "boolean") return value;
@@ -229,12 +370,48 @@ function scrollDirection(args: Arguments): ScrollDirection {
   );
 }
 
+/** Index, selector and coordinates, in the shape the content script expects. */
+function elementTarget(args: Arguments) {
+  return {
+    index: optionalNumber(args, "index"),
+    selector: optionalString(args, "selector"),
+    x: optionalNumber(args, "x"),
+    y: optionalNumber(args, "y"),
+  };
+}
+
 export async function executeBrowserTool(
   name: string,
   args: Arguments,
-): Promise<string> {
+): Promise<BrowserToolResult> {
   const tab = await getActiveTab();
 
+  // The only tool that answers with a picture rather than with text.
+  if (name === "browser_screenshot") {
+    const shot = await captureScreenshot(tab.id, tab.windowId, {
+      grid: optionalBoolean(args, "grid") ?? false,
+      maxWidth: optionalNumber(args, "max_width") ?? DEFAULT_MAX_WIDTH,
+    });
+    const description = describeScreenshot(shot);
+
+    return {
+      text: description,
+      image: {
+        dataUrl: shot.dataUrl,
+        thumbnailDataUrl: shot.thumbnailDataUrl,
+        description,
+      },
+    };
+  }
+
+  return { text: await executeTextTool(name, args, tab) };
+}
+
+async function executeTextTool(
+  name: string,
+  args: Arguments,
+  tab: TabState,
+): Promise<string> {
   switch (name) {
     case "browser_read_page":
       return sendBrowserCommand(tab.id, {
@@ -253,8 +430,20 @@ export async function executeBrowserTool(
     case "browser_click":
       return sendNavigatingCommand(tab.id, {
         name: "click",
-        index: optionalNumber(args, "index"),
-        selector: optionalString(args, "selector"),
+        ...elementTarget(args),
+      });
+
+    case "browser_hover":
+      return sendBrowserCommand(tab.id, {
+        name: "hover",
+        ...elementTarget(args),
+      });
+
+    case "browser_describe_point":
+      return sendBrowserCommand(tab.id, {
+        name: "describePoint",
+        x: requiredNumber(args, "x"),
+        y: requiredNumber(args, "y"),
       });
 
     case "browser_fill": {
@@ -271,6 +460,15 @@ export async function executeBrowserTool(
         ? sendNavigatingCommand(tab.id, command)
         : sendBrowserCommand(tab.id, command);
     }
+
+    case "browser_press_key":
+      // A key press can confirm a form and take the page with it.
+      return sendNavigatingCommand(tab.id, {
+        name: "pressKey",
+        key: requiredString(args, "key"),
+        index: optionalNumber(args, "index"),
+        selector: optionalString(args, "selector"),
+      });
 
     case "browser_navigate": {
       const url = requiredString(args, "url");

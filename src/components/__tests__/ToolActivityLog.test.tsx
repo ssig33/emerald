@@ -49,6 +49,28 @@ describe("ToolActivityLog", () => {
     expect(screen.getByText('Clicked <button> "Log in".')).toBeInTheDocument();
   });
 
+  it("shows the screenshot a call returned", async () => {
+    const user = userEvent.setup();
+    render(
+      <ToolActivityLog
+        interactions={[
+          {
+            name: "browser_screenshot",
+            arguments: '{"grid":true,"max_width":null}',
+            result: "Screenshot of https://example.com/ (Example).",
+            image: "data:image/jpeg;base64,abc",
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByText("1 tool action"));
+
+    expect(
+      screen.getByAltText("browser_screenshot screenshot"),
+    ).toHaveAttribute("src", "data:image/jpeg;base64,abc");
+  });
+
   it("keeps unparseable arguments readable", async () => {
     const user = userEvent.setup();
     render(
