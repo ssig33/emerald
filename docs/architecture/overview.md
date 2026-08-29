@@ -63,12 +63,15 @@ state in the settings as well.
 
 #### Browser Agent (`src/lib/browser-agent/`, `src/content/browser-agent.ts`)
 
-The browser tools (`browser_read_page`, `browser_list_elements`,
-`browser_click`, `browser_fill`, `browser_navigate`, `browser_scroll`) let the
-model operate the active tab. They run without user confirmation, and every call
-is logged into the chat by `ToolActivityLog`. The side panel sends commands
-through `browser-agent/bridge.ts`; the content script executes them against the
-real DOM. See [Browser Agent](./browser-agent.md).
+The browser tools (`browser_read_page`, `browser_screenshot`,
+`browser_list_elements`, `browser_click`, `browser_hover`,
+`browser_describe_point`, `browser_fill`, `browser_press_key`,
+`browser_navigate`, `browser_scroll`) let the model operate the active tab. They
+run without user confirmation, and every call is logged into the chat by
+`ToolActivityLog`. The side panel sends commands through
+`browser-agent/bridge.ts`; the content script executes them against the real
+DOM. `browser-agent/screenshot.ts` photographs the tab and feeds the picture
+back to the model as an image. See [Browser Agent](./browser-agent.md).
 
 ### 4. Type System (`src/types/`)
 

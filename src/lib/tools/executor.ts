@@ -8,6 +8,7 @@ import {
 } from "../../types/openai";
 import {
   BROWSER_TOOLS,
+  ToolImage,
   executeBrowserTool,
   isBrowserToolName,
 } from "./browser-tools";
@@ -40,19 +41,47 @@ export const getAvailableTools = (): ToolDefinition[] => [
   WEB_SEARCH_TOOL,
 ];
 
+/** A picture a tool produced, tied back to the call that produced it. */
+export interface ToolImageAttachment extends ToolImage {
+  callId: string;
+  toolName: string;
+}
+
+/**
+ * A round of tool calls: the text answers the model expects, plus any images
+ * they produced. Images travel separately because a function call output is
+ * text only.
+ */
+export interface ToolRunResult {
+  outputs: FunctionCallOutputItem[];
+  images: ToolImageAttachment[];
+}
+
+interface SingleToolResult {
+  output: FunctionCallOutputItem;
+  image?: ToolImage;
+}
+
 export class ToolExecutor {
-  async execute(
-    functionCalls: FunctionCallItem[],
-  ): Promise<FunctionCallOutputItem[]> {
-    const results: FunctionCallOutputItem[] = [];
+  async execute(functionCalls: FunctionCallItem[]): Promise<ToolRunResult> {
+    const outputs: FunctionCallOutputItem[] = [];
+    const images: ToolImageAttachment[] = [];
 
     for (const functionCall of functionCalls) {
       try {
-        results.push(await this.executeSingleTool(functionCall));
+        const result = await this.executeSingleTool(functionCall);
+        outputs.push(result.output);
+        if (result.image) {
+          images.push({
+            ...result.image,
+            callId: functionCall.call_id,
+            toolName: functionCall.name,
+          });
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
-        results.push({
+        outputs.push({
           type: "function_call_output",
           call_id: functionCall.call_id,
           output: `Error: ${errorMessage}`,
@@ -60,26 +89,31 @@ export class ToolExecutor {
       }
     }
 
-    return results;
+    return { outputs, images };
   }
 
   private async executeSingleTool(
     functionCall: FunctionCallItem,
-  ): Promise<FunctionCallOutputItem> {
+  ): Promise<SingleToolResult> {
     if (isBrowserToolName(functionCall.name)) {
+      const result = await executeBrowserTool(
+        functionCall.name,
+        this.parseArguments(functionCall),
+      );
+
       return {
-        type: "function_call_output",
-        call_id: functionCall.call_id,
-        output: await executeBrowserTool(
-          functionCall.name,
-          this.parseArguments(functionCall),
-        ),
+        output: {
+          type: "function_call_output",
+          call_id: functionCall.call_id,
+          output: result.text,
+        },
+        image: result.image,
       };
     }
 
     switch (functionCall.name) {
       case "get_current_time":
-        return this.executeGetCurrentTime(functionCall.call_id);
+        return { output: this.executeGetCurrentTime(functionCall.call_id) };
       default:
         throw new ToolExecutionError(
           `Unknown tool: ${functionCall.name}`,
