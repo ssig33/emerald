@@ -8,7 +8,9 @@
 import {
   BrowserAgentCommand,
   BrowserAgentResponse,
+  ElementTarget,
   ScrollDirection,
+  ViewportInfo,
 } from "../lib/browser-agent/types";
 
 /** Elements that carry no meaning for an agent reading the page. */
@@ -343,10 +345,42 @@ export function listInteractiveElements(
   return `${header}\n${lines.join("\n")}${footer}`;
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** A coordinate is only usable when both axes are given. */
+function pointOf(target: Partial<ElementTarget>): Point | null {
+  const { x, y } = target;
+  if (typeof x !== "number" || typeof y !== "number") return null;
+  return { x, y };
+}
+
+function viewportSize(): string {
+  return `${window.innerWidth}x${window.innerHeight}`;
+}
+
+/**
+ * Topmost element under a viewport coordinate. That is what a real click at
+ * those coordinates would reach, overlays included.
+ */
+function elementAtPoint(point: Point): HTMLElement {
+  const element = document.elementFromPoint(point.x, point.y);
+  if (!element) {
+    throw new Error(
+      `No element at (${point.x}, ${point.y}). Coordinates are CSS pixels inside the ` +
+        `${viewportSize()} viewport; take a browser_screenshot to see where things are.`,
+    );
+  }
+  return element as HTMLElement;
+}
+
 /** Resolves a command target, preferring the index from the last snapshot. */
 function resolveTarget(
   index: number | null,
   selector: string | null,
+  point: Point | null = null,
 ): HTMLElement {
   if (index !== null && index !== undefined) {
     const element = elementRegistry[index];
@@ -376,7 +410,11 @@ function resolveTarget(
     return element as HTMLElement;
   }
 
-  throw new Error("Either index or selector must be provided.");
+  if (point) return elementAtPoint(point);
+
+  throw new Error(
+    "Either index, selector or x/y coordinates must be provided.",
+  );
 }
 
 function describeTarget(element: Element): string {
@@ -384,11 +422,183 @@ function describeTarget(element: Element): string {
   return `<${element.tagName.toLowerCase()}>` + (label ? ` "${label}"` : "");
 }
 
-function clickElement(element: HTMLElement): string {
-  element.scrollIntoView?.({ block: "center", inline: "nearest" });
+/**
+ * Mouse events carry the coordinates they were aimed at, so handlers that read
+ * clientX/clientY (canvases, maps, custom drag pickers) behave as they would
+ * under a real pointer. `element.click()` alone reports (0, 0).
+ */
+function dispatchMouseEvent(
+  element: HTMLElement,
+  type: string,
+  point: Point,
+  buttons: number,
+): void {
+  const init: MouseEventInit = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    button: 0,
+    buttons,
+    clientX: point.x,
+    clientY: point.y,
+  };
+
+  const event =
+    type.startsWith("pointer") && typeof PointerEvent === "function"
+      ? new PointerEvent(type, init)
+      : new MouseEvent(type, init);
+
+  element.dispatchEvent(event);
+}
+
+/** Centre of an element in viewport coordinates. */
+function centreOf(element: HTMLElement): Point {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: Math.round(rect.left + rect.width / 2),
+    y: Math.round(rect.top + rect.height / 2),
+  };
+}
+
+function clickElement(element: HTMLElement, point: Point | null): string {
+  // A coordinate is only meaningful for the current scroll position, so an
+  // element addressed that way must not be scrolled around first.
+  if (!point) {
+    element.scrollIntoView?.({ block: "center", inline: "nearest" });
+  }
   element.focus?.();
-  element.click();
-  return `Clicked ${describeTarget(element)}.`;
+
+  const at = point ?? centreOf(element);
+  dispatchMouseEvent(element, "pointerdown", at, 1);
+  dispatchMouseEvent(element, "mousedown", at, 1);
+  dispatchMouseEvent(element, "pointerup", at, 0);
+  dispatchMouseEvent(element, "mouseup", at, 0);
+  // Dispatched rather than element.click(): a dispatched click still runs the
+  // activation behaviour (links navigate, checkboxes toggle) but carries the
+  // coordinates with it.
+  dispatchMouseEvent(element, "click", at, 0);
+
+  const where = point ? ` at (${point.x}, ${point.y})` : "";
+  return `Clicked ${describeTarget(element)}${where}.`;
+}
+
+/** Reveals hover-only menus and tooltips before they can be clicked. */
+function hoverElement(element: HTMLElement, point: Point | null): string {
+  if (!point) {
+    element.scrollIntoView?.({ block: "center", inline: "nearest" });
+  }
+
+  const at = point ?? centreOf(element);
+  dispatchMouseEvent(element, "pointerover", at, 0);
+  dispatchMouseEvent(element, "mouseover", at, 0);
+  dispatchMouseEvent(element, "pointermove", at, 0);
+  dispatchMouseEvent(element, "mousemove", at, 0);
+  element.dispatchEvent(
+    new MouseEvent("mouseenter", {
+      bubbles: false,
+      composed: true,
+      clientX: at.x,
+      clientY: at.y,
+    }),
+  );
+
+  const where = point ? ` at (${point.x}, ${point.y})` : "";
+  return `Hovered ${describeTarget(element)}${where}.`;
+}
+
+/** Best-effort KeyboardEvent.code for the key names a model is likely to send. */
+function codeForKey(key: string): string {
+  if (key.length === 1) {
+    if (/[a-zA-Z]/.test(key)) return `Key${key.toUpperCase()}`;
+    if (/[0-9]/.test(key)) return `Digit${key}`;
+    if (key === " ") return "Space";
+    return "";
+  }
+  return key;
+}
+
+const PRINTABLE_KEY = /^.$/u;
+
+function pressKey(
+  key: string,
+  index: number | null,
+  selector: string | null,
+): string {
+  if (!key) {
+    throw new Error('"key" must be a KeyboardEvent key value, e.g. "Enter".');
+  }
+
+  const element =
+    index !== null || selector
+      ? resolveTarget(index, selector)
+      : ((document.activeElement as HTMLElement | null) ?? document.body);
+
+  element.focus?.();
+
+  const init: KeyboardEventInit = {
+    key,
+    code: codeForKey(key),
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  };
+
+  element.dispatchEvent(new KeyboardEvent("keydown", init));
+  if (PRINTABLE_KEY.test(key)) {
+    element.dispatchEvent(new KeyboardEvent("keypress", init));
+  }
+  element.dispatchEvent(new KeyboardEvent("keyup", init));
+
+  return `Pressed "${key}" on ${describeTarget(element)}.`;
+}
+
+/**
+ * Names what a screenshot shows at a coordinate. The whole stack is reported,
+ * because the topmost hit is often a wrapper or an overlay rather than the
+ * control the model is aiming at.
+ */
+function describePoint(point: Point): string {
+  const stack =
+    typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(point.x, point.y)
+      : [elementAtPoint(point)];
+
+  if (stack.length === 0) {
+    return `Nothing at (${point.x}, ${point.y}) in the ${viewportSize()} viewport.`;
+  }
+
+  const lines = stack.slice(0, 5).map((element, depth) => {
+    const rect = element.getBoundingClientRect();
+    const geometry = `rect=(${Math.round(rect.left)}, ${Math.round(rect.top)}, ${Math.round(rect.width)}x${Math.round(rect.height)})`;
+    const label = labelOf(element);
+    return (
+      `${depth === 0 ? "[top]" : `[+${depth}]`} ` +
+      `<${element.tagName.toLowerCase()}${attributeSummary(element)}>` +
+      (label ? ` "${label}"` : "") +
+      ` ${geometry} selector=${JSON.stringify(cssSelectorFor(element))}`
+    );
+  });
+
+  return (
+    `At (${point.x}, ${point.y}) in the ${viewportSize()} viewport:\n` +
+    lines.join("\n")
+  );
+}
+
+function viewportInfo(): ViewportInfo {
+  const root = document.documentElement;
+
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    devicePixelRatio: window.devicePixelRatio || 1,
+    scrollX: Math.round(window.scrollX),
+    scrollY: Math.round(window.scrollY),
+    pageWidth: root?.scrollWidth ?? window.innerWidth,
+    pageHeight: root?.scrollHeight ?? window.innerHeight,
+    title: document.title,
+    url: window.location.href,
+  };
 }
 
 /**
@@ -564,8 +774,21 @@ function runCommand(command: BrowserAgentCommand): string {
         command.maxElements ?? DEFAULT_MAX_ELEMENTS,
       );
 
-    case "click":
-      return clickElement(resolveTarget(command.index, command.selector));
+    case "click": {
+      const point = pointOf(command);
+      return clickElement(
+        resolveTarget(command.index, command.selector, point),
+        point,
+      );
+    }
+
+    case "hover": {
+      const point = pointOf(command);
+      return hoverElement(
+        resolveTarget(command.index, command.selector, point),
+        point,
+      );
+    }
 
     case "fill":
       return fillElement(
@@ -576,6 +799,15 @@ function runCommand(command: BrowserAgentCommand): string {
 
     case "scroll":
       return scrollPage(command.direction, command.index, command.selector);
+
+    case "pressKey":
+      return pressKey(command.key, command.index, command.selector);
+
+    case "describePoint":
+      return describePoint({ x: command.x, y: command.y });
+
+    case "viewportInfo":
+      return JSON.stringify(viewportInfo());
   }
 }
 

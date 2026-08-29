@@ -3,6 +3,7 @@ import {
   FunctionCallItem,
   FunctionCallOutputItem,
   ReasoningEffort,
+  ResponseContentPart,
   ResponseInputItem,
   ResponsesRequest,
 } from "../../types/openai";
@@ -13,7 +14,11 @@ import {
   RESPONSES_URL,
 } from "./constants";
 import { StreamProcessor, StreamCallbacks } from "./stream-processor";
-import { ToolExecutor, getAvailableTools } from "../tools/executor";
+import {
+  ToolExecutor,
+  ToolImageAttachment,
+  getAvailableTools,
+} from "../tools/executor";
 
 export interface OpenAIClientConfig {
   apiKey: string;
@@ -96,12 +101,19 @@ export class OpenAIClient {
       ...originalCallbacks,
       onToolCalls: async (functionCalls: FunctionCallItem[]) => {
         try {
-          const outputs = await this.toolExecutor.execute(functionCalls);
-          this.reportToolActivity(functionCalls, outputs, originalCallbacks);
+          const { outputs, images } =
+            await this.toolExecutor.execute(functionCalls);
+          this.reportToolActivity(
+            functionCalls,
+            outputs,
+            images,
+            originalCallbacks,
+          );
           await this.continueWithToolOutputs(
             input,
             functionCalls,
             outputs,
+            images,
             originalCallbacks,
           );
         } catch (error) {
@@ -116,6 +128,7 @@ export class OpenAIClient {
   private reportToolActivity(
     functionCalls: FunctionCallItem[],
     outputs: FunctionCallOutputItem[],
+    images: ToolImageAttachment[],
     callbacks: StreamCallbacks,
   ): void {
     if (!callbacks.onToolActivity) return;
@@ -123,20 +136,50 @@ export class OpenAIClient {
     const outputByCallId = new Map(
       outputs.map((output) => [output.call_id, output.output]),
     );
+    // The log keeps the small copy: a full screenshot per call would fill the
+    // session storage the conversation lives in.
+    const thumbnailByCallId = new Map(
+      images.map((image) => [image.callId, image.thumbnailDataUrl]),
+    );
 
     const interactions = functionCalls.map((functionCall) => ({
       name: functionCall.name,
       arguments: functionCall.arguments,
       result: outputByCallId.get(functionCall.call_id) ?? "",
+      image: thumbnailByCallId.get(functionCall.call_id),
     }));
 
     callbacks.onToolActivity(interactions);
+  }
+
+  /**
+   * A function call output is text only, so a picture a tool produced is
+   * appended as a user message right after the outputs. That is what lets the
+   * model actually look at a screenshot it asked for.
+   */
+  private buildImageMessage(
+    images: ToolImageAttachment[],
+  ): ResponseInputItem[] {
+    if (images.length === 0) return [];
+
+    const content: ResponseContentPart[] = [];
+
+    for (const image of images) {
+      content.push({
+        type: "input_text",
+        text: `Image returned by ${image.toolName}:\n${image.description}`,
+      });
+      content.push({ type: "input_image", image_url: image.dataUrl });
+    }
+
+    return [{ role: "user", content }];
   }
 
   private async continueWithToolOutputs(
     input: ResponseInputItem[],
     functionCalls: FunctionCallItem[],
     outputs: FunctionCallOutputItem[],
+    images: ToolImageAttachment[],
     callbacks: StreamCallbacks,
   ): Promise<void> {
     const replayedCalls: ResponseInputItem[] = functionCalls.map(
@@ -152,6 +195,7 @@ export class OpenAIClient {
       ...input,
       ...replayedCalls,
       ...outputs,
+      ...this.buildImageMessage(images),
     ];
 
     this.streamProcessor.reset();

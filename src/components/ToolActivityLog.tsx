@@ -102,6 +102,21 @@ const ToolActivityLog: React.FC<ToolActivityLogProps> = ({ interactions }) => {
                 >
                   {truncate(interaction.result)}
                 </Typography>
+                {interaction.image && (
+                  <Box
+                    component="img"
+                    src={interaction.image}
+                    alt={`${interaction.name} screenshot`}
+                    sx={{
+                      mt: 0.5,
+                      maxWidth: "100%",
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: "grey.400",
+                      display: "block",
+                    }}
+                  />
+                )}
               </Box>
             );
           })}

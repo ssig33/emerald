@@ -23,22 +23,22 @@ describe("ToolExecutor", () => {
 
   describe("execute", () => {
     it("should execute get_current_time tool successfully", async () => {
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall("test-id-1", "get_current_time"),
       ]);
 
-      expect(results).toHaveLength(1);
-      expect(results[0].type).toBe("function_call_output");
-      expect(results[0].call_id).toBe("test-id-1");
-      expect(results[0].output).toMatch(/^Current local time:/);
+      expect(outputs).toHaveLength(1);
+      expect(outputs[0].type).toBe("function_call_output");
+      expect(outputs[0].call_id).toBe("test-id-1");
+      expect(outputs[0].output).toMatch(/^Current local time:/);
     });
 
     it("should handle unknown tool", async () => {
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall("test-id-1", "unknown_tool"),
       ]);
 
-      expect(results).toEqual([
+      expect(outputs).toEqual([
         {
           type: "function_call_output",
           call_id: "test-id-1",
@@ -48,27 +48,27 @@ describe("ToolExecutor", () => {
     });
 
     it("should execute multiple tools", async () => {
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall("test-id-1", "get_current_time"),
         functionCall("test-id-2", "get_current_time"),
       ]);
 
-      expect(results).toHaveLength(2);
-      expect(results[0].call_id).toBe("test-id-1");
-      expect(results[0].output).toMatch(/^Current local time:/);
-      expect(results[1].call_id).toBe("test-id-2");
-      expect(results[1].output).toMatch(/^Current local time:/);
+      expect(outputs).toHaveLength(2);
+      expect(outputs[0].call_id).toBe("test-id-1");
+      expect(outputs[0].output).toMatch(/^Current local time:/);
+      expect(outputs[1].call_id).toBe("test-id-2");
+      expect(outputs[1].output).toMatch(/^Current local time:/);
     });
 
     it("should handle mixed success and error cases", async () => {
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall("test-id-1", "get_current_time"),
         functionCall("test-id-2", "unknown_tool"),
       ]);
 
-      expect(results).toHaveLength(2);
-      expect(results[0].output).toMatch(/^Current local time:/);
-      expect(results[1].output).toBe("Error: Unknown tool: unknown_tool");
+      expect(outputs).toHaveLength(2);
+      expect(outputs[0].output).toMatch(/^Current local time:/);
+      expect(outputs[1].output).toBe("Error: Unknown tool: unknown_tool");
     });
   });
 
@@ -82,7 +82,7 @@ describe("ToolExecutor", () => {
         result: "Title: Example",
       });
 
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall(
           "test-id-1",
           "browser_read_page",
@@ -90,7 +90,7 @@ describe("ToolExecutor", () => {
         ),
       ]);
 
-      expect(results).toEqual([
+      expect(outputs).toEqual([
         {
           type: "function_call_output",
           call_id: "test-id-1",
@@ -108,7 +108,7 @@ describe("ToolExecutor", () => {
         error: "No element at index 9",
       });
 
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall(
           "test-id-1",
           "browser_click",
@@ -116,15 +116,15 @@ describe("ToolExecutor", () => {
         ),
       ]);
 
-      expect(results[0].output).toBe("Error: No element at index 9");
+      expect(outputs[0].output).toBe("Error: No element at index 9");
     });
 
     it("reports malformed tool arguments instead of crashing", async () => {
-      const results = await toolExecutor.execute([
+      const { outputs } = await toolExecutor.execute([
         functionCall("test-id-1", "browser_read_page", "{not json"),
       ]);
 
-      expect(results[0].output).toContain("Invalid JSON arguments");
+      expect(outputs[0].output).toContain("Invalid JSON arguments");
     });
   });
 
@@ -137,9 +137,13 @@ describe("ToolExecutor", () => {
       expect(functionTools.map((tool) => tool.name)).toEqual([
         "get_current_time",
         "browser_read_page",
+        "browser_screenshot",
         "browser_list_elements",
         "browser_click",
+        "browser_hover",
+        "browser_describe_point",
         "browser_fill",
+        "browser_press_key",
         "browser_navigate",
         "browser_scroll",
       ]);
