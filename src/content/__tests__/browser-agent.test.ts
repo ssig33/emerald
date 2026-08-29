@@ -240,6 +240,8 @@ describe("browser agent commands", () => {
         name: "click",
         index: indexOf(listing, "Save"),
         selector: null,
+        x: null,
+        y: null,
       });
 
       expect(clicked).toHaveBeenCalledTimes(1);
@@ -251,7 +253,13 @@ describe("browser agent commands", () => {
       const clicked = vi.fn();
       document.querySelector(".primary")!.addEventListener("click", clicked);
 
-      run({ name: "click", index: null, selector: ".primary" });
+      run({
+        name: "click",
+        index: null,
+        selector: ".primary",
+        x: null,
+        y: null,
+      });
 
       expect(clicked).toHaveBeenCalledTimes(1);
     });
@@ -263,6 +271,8 @@ describe("browser agent commands", () => {
         name: "click",
         index: 42,
         selector: null,
+        x: null,
+        y: null,
       });
 
       expect(response.ok).toBe(false);
@@ -280,6 +290,8 @@ describe("browser agent commands", () => {
         name: "click",
         index: 0,
         selector: null,
+        x: null,
+        y: null,
       });
 
       expect(response.ok).toBe(false);
@@ -288,16 +300,182 @@ describe("browser agent commands", () => {
       );
     });
 
-    it("requires either an index or a selector", () => {
+    it("requires an index, a selector or coordinates", () => {
       const response = handleBrowserAgentCommand({
         name: "click",
         index: null,
         selector: null,
+        x: null,
+        y: null,
       });
 
       expect(response).toEqual({
         ok: false,
-        error: "Either index or selector must be provided.",
+        error: "Either index, selector or x/y coordinates must be provided.",
+      });
+    });
+  });
+
+  describe("clicking by coordinates", () => {
+    /** jsdom has no layout, so hit testing is answered by hand. */
+    const hitTest = (element: Element | null) => {
+      document.elementFromPoint = vi.fn(() => element) as never;
+      document.elementsFromPoint = vi.fn(() =>
+        element ? [element] : [],
+      ) as never;
+    };
+
+    it("clicks whatever sits under the point", () => {
+      setBody('<button id="save">Save</button>');
+      const button = document.getElementById("save")!;
+      hitTest(button);
+      const clicked = vi.fn();
+      button.addEventListener("click", clicked);
+
+      const result = run({
+        name: "click",
+        index: null,
+        selector: null,
+        x: 120,
+        y: 240,
+      });
+
+      expect(document.elementFromPoint).toHaveBeenCalledWith(120, 240);
+      expect(clicked).toHaveBeenCalledTimes(1);
+      expect(result).toBe('Clicked <button> "Save" at (120, 240).');
+    });
+
+    it("carries the coordinates on the events it dispatches", () => {
+      setBody('<div id="canvas">canvas</div>');
+      const target = document.getElementById("canvas")!;
+      hitTest(target);
+      const seen: string[] = [];
+      const positions: string[] = [];
+      for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
+        target.addEventListener(type, (event) => {
+          seen.push(type);
+          positions.push(
+            `${(event as MouseEvent).clientX},${(event as MouseEvent).clientY}`,
+          );
+        });
+      }
+
+      run({ name: "click", index: null, selector: null, x: 40, y: 80 });
+
+      expect(seen).toEqual(["pointerdown", "mousedown", "mouseup", "click"]);
+      expect(new Set(positions)).toEqual(new Set(["40,80"]));
+    });
+
+    it("explains an empty point", () => {
+      hitTest(null);
+
+      const response = handleBrowserAgentCommand({
+        name: "click",
+        index: null,
+        selector: null,
+        x: 5,
+        y: 5,
+      });
+
+      expect(response.ok).toBe(false);
+      expect(response.ok === false && response.error).toContain(
+        "No element at (5, 5)",
+      );
+    });
+
+    it("describes the stack under a point without touching it", () => {
+      setBody('<button id="save">Save</button>');
+      const button = document.getElementById("save")!;
+      hitTest(button);
+      const clicked = vi.fn();
+      button.addEventListener("click", clicked);
+
+      const result = run({ name: "describePoint", x: 10, y: 20 });
+
+      expect(clicked).not.toHaveBeenCalled();
+      expect(result).toContain("At (10, 20)");
+      expect(result).toContain('[top] <button id="save"> "Save"');
+      expect(result).toContain('selector="#save"');
+    });
+  });
+
+  describe("hover", () => {
+    it("fires the pointer events a menu waits for", () => {
+      setBody('<div id="menu">Menu</div>');
+      const menu = document.getElementById("menu")!;
+      const seen: string[] = [];
+      for (const type of ["pointerover", "mouseover", "mousemove"]) {
+        menu.addEventListener(type, () => seen.push(type));
+      }
+
+      const result = run({
+        name: "hover",
+        index: null,
+        selector: "#menu",
+        x: null,
+        y: null,
+      });
+
+      expect(seen).toEqual(["pointerover", "mouseover", "mousemove"]);
+      expect(result).toBe('Hovered <div> "Menu".');
+    });
+  });
+
+  describe("pressKey", () => {
+    it("sends the key to the element it is given", () => {
+      setBody('<input id="q" />');
+      const input = document.getElementById("q") as HTMLInputElement;
+      const keys: string[] = [];
+      input.addEventListener("keydown", (event) => keys.push(event.key));
+
+      const result = run({
+        name: "pressKey",
+        key: "Enter",
+        index: null,
+        selector: "#q",
+      });
+
+      expect(keys).toEqual(["Enter"]);
+      expect(result).toContain('Pressed "Enter"');
+    });
+
+    it("falls back to the focused element", () => {
+      setBody('<input id="q" />');
+      const input = document.getElementById("q") as HTMLInputElement;
+      input.focus();
+      const keys: string[] = [];
+      input.addEventListener("keyup", (event) => keys.push(event.key));
+
+      run({ name: "pressKey", key: "Escape", index: null, selector: null });
+
+      expect(keys).toEqual(["Escape"]);
+    });
+
+    it("refuses an empty key", () => {
+      const response = handleBrowserAgentCommand({
+        name: "pressKey",
+        key: "",
+        index: null,
+        selector: null,
+      });
+
+      expect(response.ok).toBe(false);
+      expect(response.ok === false && response.error).toContain(
+        "KeyboardEvent key value",
+      );
+    });
+  });
+
+  describe("viewportInfo", () => {
+    it("reports the geometry a screenshot is mapped with", () => {
+      const info = JSON.parse(run({ name: "viewportInfo" }));
+
+      expect(info).toMatchObject({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio || 1,
+        url: "http://localhost:3000/",
+        title: "Test Page",
       });
     });
   });

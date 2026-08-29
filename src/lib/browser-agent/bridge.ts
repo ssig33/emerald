@@ -12,9 +12,12 @@ const LOAD_POLL_INTERVAL_MS = 150;
 const LOAD_TIMEOUT_MS = 15000;
 /** Time given to a click before the resulting navigation is looked at. */
 const NAVIGATION_SETTLE_MS = 400;
+/** chrome.windows.WINDOW_ID_CURRENT, without depending on the windows API. */
+const WINDOW_ID_CURRENT = -2;
 
 export interface TabState {
   id: number;
+  windowId: number;
   url: string;
   title: string;
 }
@@ -29,7 +32,7 @@ export async function getActiveTab(): Promise<TabState> {
     throw new Error("No active tab found.");
   }
 
-  return { id: tab.id, url: tab.url ?? "", title: tab.title ?? "" };
+  return tabState(tab.id, tab);
 }
 
 /** Resolves once the tab finished loading, or when the timeout elapses. */
@@ -39,13 +42,21 @@ export async function waitForTabLoad(tabId: number): Promise<TabState> {
   while (Date.now() < deadline) {
     const tab = await chrome.tabs.get(tabId);
     if (tab.status === "complete") {
-      return { id: tabId, url: tab.url ?? "", title: tab.title ?? "" };
+      return tabState(tabId, tab);
     }
     await delay(LOAD_POLL_INTERVAL_MS);
   }
 
-  const tab = await chrome.tabs.get(tabId);
-  return { id: tabId, url: tab.url ?? "", title: tab.title ?? "" };
+  return tabState(tabId, await chrome.tabs.get(tabId));
+}
+
+function tabState(tabId: number, tab: chrome.tabs.Tab): TabState {
+  return {
+    id: tabId,
+    windowId: tab.windowId ?? WINDOW_ID_CURRENT,
+    url: tab.url ?? "",
+    title: tab.title ?? "",
+  };
 }
 
 /**
