@@ -171,38 +171,40 @@ const InputArea: React.FC<InputAreaProps> = ({
         variant="outlined"
         size="small"
         disabled={disabled}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <ImageSelector onImageCapture={handleImageCapture} />
-              {isCapturingPage ? (
-                <CircularProgress size={20} />
-              ) : (
-                <IconButton
-                  onClick={handlePageCapture}
-                  size="small"
-                  title="Capture page content"
-                >
-                  <ArticleIcon />
-                </IconButton>
-              )}
-            </InputAdornment>
-          ),
-          endAdornment: (
-            <InputAdornment position="end">
-              {disabled ? (
-                <CircularProgress size={20} />
-              ) : (
-                <IconButton
-                  onClick={handleSend}
-                  disabled={!canSend}
-                  size="small"
-                >
-                  <SendIcon />
-                </IconButton>
-              )}
-            </InputAdornment>
-          ),
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <ImageSelector onImageCapture={handleImageCapture} />
+                {isCapturingPage ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <IconButton
+                    onClick={handlePageCapture}
+                    size="small"
+                    title="Capture page content"
+                  >
+                    <ArticleIcon />
+                  </IconButton>
+                )}
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                {disabled ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <IconButton
+                    onClick={handleSend}
+                    disabled={!canSend}
+                    size="small"
+                  >
+                    <SendIcon />
+                  </IconButton>
+                )}
+              </InputAdornment>
+            ),
+          },
         }}
       />
 
