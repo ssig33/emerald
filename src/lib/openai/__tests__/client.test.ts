@@ -78,7 +78,7 @@ describe("OpenAIClient", () => {
       expect(onComplete).toHaveBeenCalled();
     });
 
-    it("should fall back to gpt-5.6-luna with max reasoning effort", async () => {
+    it("should fall back to gpt-6-luna with max reasoning effort", async () => {
       globalThis.fetch = vi
         .fn()
         .mockResolvedValue(createMockResponse([textDelta("test")]));
@@ -89,7 +89,7 @@ describe("OpenAIClient", () => {
         (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
-      expect(requestBody.model).toBe("gpt-5.6-luna");
+      expect(requestBody.model).toBe("gpt-6-luna");
       expect(requestBody.reasoning).toEqual({ effort: "max" });
       expect(requestBody.input).toEqual(mockInput);
       expect(requestBody.tool_choice).toBe("auto");
@@ -103,7 +103,7 @@ describe("OpenAIClient", () => {
 
       const configured = new OpenAIClient({
         apiKey: mockApiKey,
-        model: "gpt-5.6-sol",
+        model: "gpt-6.1-sol",
         reasoningEffort: "medium",
       });
       await configured.sendMessage(mockInput, {});
@@ -112,7 +112,7 @@ describe("OpenAIClient", () => {
         (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
-      expect(requestBody.model).toBe("gpt-5.6-sol");
+      expect(requestBody.model).toBe("gpt-6.1-sol");
       expect(requestBody.reasoning).toEqual({ effort: "medium" });
     });
 
@@ -133,7 +133,7 @@ describe("OpenAIClient", () => {
 
       const configured = new OpenAIClient({
         apiKey: mockApiKey,
-        model: "gpt-5.6-terra",
+        model: "gpt-6-astra",
         reasoningEffort: "high",
       });
       await configured.sendMessage(mockInput, {});
@@ -142,7 +142,7 @@ describe("OpenAIClient", () => {
         (globalThis.fetch as any).mock.calls[1][1].body,
       );
 
-      expect(followUpBody.model).toBe("gpt-5.6-terra");
+      expect(followUpBody.model).toBe("gpt-6-astra");
       expect(followUpBody.reasoning).toEqual({ effort: "high" });
     });
 
