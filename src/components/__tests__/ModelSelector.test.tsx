@@ -12,7 +12,7 @@ describe("ModelSelector", () => {
   });
 
   const toggleButton = () =>
-    screen.getByRole("button", { name: /Luna|Sol|Terra/ });
+    screen.getByRole("button", { name: /Luna|Sol|Astra/ });
 
   /** Render, wait for the stored settings, then expand the pickers. */
   const renderExpanded = async () => {
@@ -46,14 +46,14 @@ describe("ModelSelector", () => {
 
   it("summarises the current selection on the toggle", async () => {
     vi.mocked(chromeMock.storage.local.get).mockResolvedValue({
-      settings: { model: "gpt-5.6-terra", reasoningEffort: "low" },
+      settings: { model: "gpt-6-astra", reasoningEffort: "low" },
     });
 
     render(<ModelSelector />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Terra/ })).toHaveTextContent(
-        "Terra · low",
+      expect(screen.getByRole("button", { name: /Astra/ })).toHaveTextContent(
+        "Astra · low",
       );
     });
   });
@@ -96,7 +96,7 @@ describe("ModelSelector", () => {
   it("shows the stored selection", async () => {
     vi.mocked(chromeMock.storage.local.get).mockResolvedValue({
       settings: {
-        model: "gpt-5.6-terra",
+        model: "gpt-6-astra",
         reasoningEffort: "low",
         modelSelectorOpen: true,
       },
@@ -106,7 +106,7 @@ describe("ModelSelector", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("combobox", { name: "Model" })).toHaveTextContent(
-        "Terra",
+        "Astra",
       );
     });
     expect(
@@ -114,14 +114,32 @@ describe("ModelSelector", () => {
     ).toHaveTextContent("low");
   });
 
-  it("offers Sol, Terra and Luna", async () => {
+  it("offers Astra, Sol and Luna", async () => {
     const user = await renderExpanded();
 
     await openSelect(user, "Model");
 
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),
-    ).toEqual(["Sol", "Terra", "Luna"]);
+    ).toEqual(["Astra", "Sol", "Luna"]);
+  });
+
+  it("offers none only for Luna", async () => {
+    const user = await renderExpanded();
+
+    await openSelect(user, "Reasoning");
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
+    await user.keyboard("{Escape}");
+
+    await openSelect(user, "Model");
+    await user.click(screen.getByRole("option", { name: "Astra" }));
+    await openSelect(user, "Reasoning");
+
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["low", "medium", "high", "xhigh", "max"]);
   });
 
   it("persists a model change", async () => {
@@ -132,7 +150,7 @@ describe("ModelSelector", () => {
 
     await waitFor(() => {
       expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
-        settings: expect.objectContaining({ model: "gpt-5.6-sol" }),
+        settings: expect.objectContaining({ model: "gpt-6.1-sol" }),
       });
     });
   });

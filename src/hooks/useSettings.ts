@@ -6,6 +6,7 @@ import {
   ModelId,
   isModelId,
   isReasoningEffort,
+  supportedReasoningEffort,
 } from "../lib/openai/constants";
 
 interface Settings {
@@ -46,12 +47,14 @@ export type { Settings };
 
 /** Drop model and reasoning effort values that the API no longer accepts. */
 function sanitize(settings: Settings): Settings {
+  const model = isModelId(settings.model) ? settings.model : DEFAULT_MODEL;
+  const reasoningEffort = isReasoningEffort(settings.reasoningEffort)
+    ? settings.reasoningEffort
+    : DEFAULT_REASONING_EFFORT;
   return {
     ...settings,
-    model: isModelId(settings.model) ? settings.model : DEFAULT_MODEL,
-    reasoningEffort: isReasoningEffort(settings.reasoningEffort)
-      ? settings.reasoningEffort
-      : DEFAULT_REASONING_EFFORT,
+    model,
+    reasoningEffort: supportedReasoningEffort(model, reasoningEffort),
   };
 }
 
@@ -111,7 +114,13 @@ export const useSettings = () => {
   };
 
   const updateModel = async (model: ModelId) => {
-    await saveSettings({ model });
+    await saveSettings({
+      model,
+      reasoningEffort: supportedReasoningEffort(
+        model,
+        settings.reasoningEffort,
+      ),
+    });
   };
 
   const updateReasoningEffort = async (reasoningEffort: ReasoningEffort) => {
