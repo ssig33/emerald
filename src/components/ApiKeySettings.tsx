@@ -95,18 +95,20 @@ const ApiKeySettings: React.FC = () => {
         margin="normal"
         error={apiKey.length > 0 && !isValidApiKey(apiKey)}
         helperText="API key for the OpenAI Responses API"
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton
-                aria-label="toggle api key visibility"
-                onClick={() => setShowApiKey(!showApiKey)}
-                edge="end"
-              >
-                {showApiKey ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </InputAdornment>
-          ),
+        slotProps={{
+          input: {
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="toggle api key visibility"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  edge="end"
+                >
+                  {showApiKey ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          },
         }}
       />
 
@@ -182,18 +184,20 @@ const ApiKeySettings: React.FC = () => {
         value={s3SecretAccessKey}
         onChange={(e) => setS3SecretAccessKey(e.target.value)}
         margin="normal"
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton
-                aria-label="toggle secret key visibility"
-                onClick={() => setShowSecretKey(!showSecretKey)}
-                edge="end"
-              >
-                {showSecretKey ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </InputAdornment>
-          ),
+        slotProps={{
+          input: {
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="toggle secret key visibility"
+                  onClick={() => setShowSecretKey(!showSecretKey)}
+                  edge="end"
+                >
+                  {showSecretKey ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          },
         }}
       />
 
