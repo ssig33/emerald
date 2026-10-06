@@ -17,13 +17,13 @@ import { useSettings } from "../hooks/useSettings";
 import { ReasoningEffort } from "../types/openai";
 import {
   MODELS,
-  REASONING_EFFORTS,
   ModelId,
   modelLabel,
+  reasoningEffortsFor,
 } from "../lib/openai/constants";
 
 /**
- * Chat-level picker for the GPT-5.6 tier and the reasoning effort.
+ * Chat-level picker for the GPT-6 tier and the reasoning effort.
  * The pickers stay collapsed behind a summary button so they only take up
  * room while they are being used. Selection and expanded state both live in
  * the shared settings, so they survive a reload and apply to every
@@ -99,7 +99,7 @@ const ModelSelector: React.FC = () => {
               value={settings.reasoningEffort}
               onChange={handleEffortChange}
             >
-              {REASONING_EFFORTS.map((effort) => (
+              {reasoningEffortsFor(settings.model).map((effort) => (
                 <MenuItem key={effort} value={effort}>
                   {effort}
                 </MenuItem>

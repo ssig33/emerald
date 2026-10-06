@@ -9,7 +9,7 @@ vi.mock("../useSettings", () => ({
     settings: {
       openaiApiKey: "sk-test-key-123",
       systemPrompt: "You are a helpful AI assistant for testing.",
-      model: "gpt-5.6-terra",
+      model: "gpt-6-astra",
       reasoningEffort: "high",
     },
     loading: false,
@@ -113,7 +113,7 @@ describe("useApi", () => {
 
     expect(OpenAIClient).toHaveBeenCalledWith({
       apiKey: "sk-test-key-123",
-      model: "gpt-5.6-terra",
+      model: "gpt-6-astra",
       reasoningEffort: "high",
     });
 

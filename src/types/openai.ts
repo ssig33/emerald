@@ -53,7 +53,7 @@ export interface WebSearchTool {
 
 export type ToolDefinition = FunctionTool | WebSearchTool;
 
-/** GPT-5.6 accepts none, low, medium, high, xhigh and max. */
+/** GPT-6 Luna accepts all of these; Astra and Sol accept all but none. */
 export type ReasoningEffort =
   "none" | "low" | "medium" | "high" | "xhigh" | "max";
 
