@@ -56,7 +56,7 @@ describe("generateConversationTitle", () => {
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
-    expect(body.model).toBe("gpt-5.6-luna");
+    expect(body.model).toBe("gpt-6-luna");
     expect(body.reasoning).toEqual({ effort: "max" });
     expect(body.stream).toBe(false);
   });
@@ -67,14 +67,14 @@ describe("generateConversationTitle", () => {
       .mockResolvedValue(mockResponse("A title"));
 
     await generateConversationTitle(
-      { apiKey: "sk-test", model: "gpt-5.6-sol", reasoningEffort: "low" },
+      { apiKey: "sk-test", model: "gpt-6.1-sol", reasoningEffort: "low" },
       [makeMessage("user", "hello")],
     );
 
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
-    expect(body.model).toBe("gpt-5.6-sol");
+    expect(body.model).toBe("gpt-6.1-sol");
     expect(body.reasoning).toEqual({ effort: "low" });
   });
 

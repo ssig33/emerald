@@ -4,8 +4,8 @@ AI assistant browser extension built on the OpenAI Responses API. Supports Chrom
 
 ## Features
 
-- Chat with GPT-5.6 Sol (`gpt-5.6-sol`), Terra (`gpt-5.6-terra`) or Luna (`gpt-5.6-luna`), switchable from the chat UI
-- Reasoning effort selectable from the chat UI (`none`, `low`, `medium`, `high`, `xhigh`, `max`)
+- Chat with GPT-6 Astra (`gpt-6-astra`), Sol (`gpt-6.1-sol`) or Luna (`gpt-6-luna`), switchable from the chat UI
+- Reasoning effort selectable from the chat UI (`low`, `medium`, `high`, `xhigh`, `max`; Luna also accepts `none`)
 - Web search through OpenAI's built-in `web_search` tool
 - Browser agent: the assistant reads the DOM of the active tab, takes screenshots
   and looks at them, lists what it can click, fills forms, clicks by coordinates

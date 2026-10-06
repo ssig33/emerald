@@ -13,12 +13,15 @@ The endpoint, the selectable models and the selectable reasoning efforts live in
 | Setting           | Value                                           |
 | ----------------- | ----------------------------------------------- |
 | Endpoint          | `https://api.openai.com/v1/responses`           |
-| Models            | `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`  |
-| Default model     | `gpt-5.6-luna`                                  |
+| Models            | `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`      |
+| Default model     | `gpt-6-luna`                                    |
 | Reasoning efforts | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
 | Default effort    | `max`                                           |
 
-The model tiers are surfaced in the UI as Sol, Terra and Luna. The user-provided
+The model tiers are surfaced in the UI as Astra, Sol and Luna. Astra and Sol do
+not accept the `none` effort, so the reasoning picker only lists the efforts the
+selected model accepts; switching to a model that rejects the current effort
+moves to its lightest accepted effort. The user-provided
 API settings are the OpenAI API key, the model and the reasoning effort; the
 latter two are picked from the chat UI and stored in `chrome.storage.local`
 alongside the other settings.
@@ -69,7 +72,7 @@ interface OpenAIClient {
 
 ```json
 {
-  "model": "gpt-5.6-sol",
+  "model": "gpt-6.1-sol",
   "input": [{ "role": "user", "content": "..." }],
   "tools": [
     { "type": "function", "name": "get_current_time" },
@@ -289,7 +292,7 @@ OpenAI function_call → ToolExecutor.execute() → Chrome API Call → function
 ```typescript
 interface OpenAIClientConfig {
   apiKey: string; // Required: OpenAI API authentication
-  model?: ModelId; // Defaults to gpt-5.6-luna
+  model?: ModelId; // Defaults to gpt-6-luna
   reasoningEffort?: ReasoningEffort; // Defaults to max
 }
 ```
