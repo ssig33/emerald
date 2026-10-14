@@ -42,7 +42,7 @@ describe("useSettings", () => {
 
   it("falls back to the defaults for unknown stored values", async () => {
     vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { model: "gpt-4o", reasoningEffort: "ludicrous" },
+      settings: { model: "gpt-6-unknown", reasoningEffort: "ludicrous" },
     });
 
     const { result } = renderHook(() => useSettings());
