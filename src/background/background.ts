@@ -1,8 +1,9 @@
+import { groupChatStorage, TAB_GROUP_ID_NONE } from "../utils/groupChatStorage";
+
 console.log("Emerald background script loaded");
 
 const SIDEPANEL_PATH = "src/sidepanel/index.html";
 const EMERALD_GROUPS_KEY = "emerald/groups";
-const TAB_GROUP_ID_NONE = -1;
 
 async function getEmeraldGroups(): Promise<number[]> {
   const result = await chrome.storage.session.get(EMERALD_GROUPS_KEY);
@@ -120,7 +121,7 @@ if (chrome.sidePanel) {
   chrome.tabGroups.onRemoved.addListener(async (group) => {
     if (await isEmeraldGroup(group.id)) {
       await removeEmeraldGroup(group.id);
-      await chrome.storage.session.remove(`group_${group.id}`);
+      await groupChatStorage.clearGroupChat(group.id);
     }
   });
 }

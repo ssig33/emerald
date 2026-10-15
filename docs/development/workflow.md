@@ -34,7 +34,6 @@ pnpm dev          # Start development server with hot reload
 pnpm build        # Build production version
 pnpm test         # Run test suite
 pnpm test --watch # Run tests in watch mode
-pnpm test --coverage # Run tests with coverage report
 ```
 
 ## Development Process
@@ -115,9 +114,7 @@ interface UserMessage {
 }
 
 // ❌ Avoid: Generic types when specific ones are available
-const message: any = {
-  /* ... */
-};
+const message: any = {/* ... */};
 ```
 
 #### Interface Design
@@ -375,9 +372,6 @@ pnpm test --reporter=verbose
 
 # Run specific test file
 pnpm test src/path/to/test.ts
-
-# Debug test with console output
-pnpm test --no-coverage
 ```
 
 #### Extension Loading Issues

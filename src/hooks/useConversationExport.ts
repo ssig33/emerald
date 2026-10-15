@@ -7,7 +7,7 @@ import { uploadToS3, S3Config } from "../lib/storage/s3";
 
 export type ExportStatus = "idle" | "uploading" | "success" | "error";
 
-function buildObjectKey(prefix: string): string {
+export function buildObjectKey(prefix: string): string {
   const now = new Date();
   const pad = (value: number) => value.toString().padStart(2, "0");
   const stamp =
