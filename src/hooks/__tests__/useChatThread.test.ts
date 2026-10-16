@@ -5,6 +5,7 @@ import { Message } from "../../types";
 
 // Mock groupChatStorage
 vi.mock("../../utils/groupChatStorage", () => ({
+  TAB_GROUP_ID_NONE: -1,
   groupChatStorage: {
     getGroupChat: vi.fn(),
     saveGroupChat: vi.fn(),

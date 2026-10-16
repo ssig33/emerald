@@ -1,5 +1,8 @@
 import { Message } from "../types";
 
+/** chrome.tabGroups.TAB_GROUP_ID_NONE: the tab belongs to no group. */
+export const TAB_GROUP_ID_NONE = -1;
+
 const key = (groupId: number) => `group_${groupId}`;
 
 export const groupChatStorage = {

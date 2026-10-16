@@ -287,14 +287,15 @@ it("should handle missing tab permissions", async () => {
 
 ### 1. Test Fixtures
 
+Test data is defined at the top of the test file that uses it. There is no shared fixtures directory.
+
 ```typescript
-// src/test/fixtures/messages.ts
-export const mockConversation = [
+const mockConversation = [
   { id: "1", content: "Hello", sender: "user", timestamp: 123456 },
   { id: "2", content: "Hi there!", sender: "ai", timestamp: 123457 },
 ];
 
-export const mockImageData = {
+const mockImageData = {
   dataUrl: "data:image/png;base64,mock-data",
   timestamp: 123456,
 };
@@ -353,9 +354,6 @@ it("should process large streams efficiently", async () => {
 ```bash
 # Run all tests
 pnpm test
-
-# Run tests with coverage
-pnpm test --coverage
 
 # Run tests in watch mode
 pnpm test --watch
