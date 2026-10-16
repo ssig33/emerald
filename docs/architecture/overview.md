@@ -22,14 +22,14 @@ Emerald follows a **modular, layered architecture** that separates concerns and 
 ### 1. UI Layer (`src/components/`)
 
 - **Responsibility**: User interface and user interactions
-- **Key Components**: ChatArea, InputArea, ModelSelector, ThreadList, ImageSelector
+- **Key Components**: ChatArea, InputArea, ModelSelector, ImageSelector, ToolActivityLog
 - **Pattern**: Presentational components with minimal business logic
 - **Communication**: Props down, events up
 
 ### 2. Hook Layer (`src/hooks/`)
 
 - **Responsibility**: State management and business logic coordination
-- **Key Hooks**: `useApi`, `useChatThread`, `useSettings`, `useStorage`
+- **Key Hooks**: `useApi`, `useChatThread`, `useSettings`, `useConversationExport`
 - **Pattern**: Custom hooks encapsulate stateful logic
 - **Benefits**: Reusable, testable, composable
 
@@ -222,11 +222,16 @@ Add by:
 
 ### 3. Test Organization
 
+Tests live in a `__tests__/` directory next to the module they cover. Shared test setup is in `src/test/`.
+
 ```
-__tests__/
-├── unit/              # Pure unit tests
-├── integration/       # Cross-module tests
-└── fixtures/         # Test data and utilities
+src/
+├── hooks/
+│   ├── useChatThread.ts
+│   └── __tests__/useChatThread.test.ts
+└── test/
+    ├── setup.ts       # Vitest setup (jest-dom, Chrome API mock)
+    └── mocks/chrome.ts
 ```
 
 ## Development Workflow

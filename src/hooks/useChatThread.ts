@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Message, ToolInteraction } from "../types";
-import { groupChatStorage } from "../utils/groupChatStorage";
+import { groupChatStorage, TAB_GROUP_ID_NONE } from "../utils/groupChatStorage";
 import { normalizeCjkMarkdown } from "../lib/markdown/cjk-normalize";
-
-const TAB_GROUP_ID_NONE = -1;
 
 async function getCurrentGroupId(): Promise<number> {
   try {
