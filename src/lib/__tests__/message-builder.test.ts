@@ -40,7 +40,7 @@ describe("MessageBuilder", () => {
       ]);
     });
 
-    it("should not include system prompt when there is conversation history", () => {
+    it("should put the system prompt before the conversation history", () => {
       const history: Message[] = [
         {
           id: "1",
@@ -57,6 +57,10 @@ describe("MessageBuilder", () => {
       );
 
       expect(result).toEqual([
+        {
+          role: "system",
+          content: "You are a helpful assistant.",
+        },
         {
           role: "user",
           content: "Previous message",
@@ -432,6 +436,10 @@ describe("MessageBuilder", () => {
       );
 
       expect(result).toEqual([
+        {
+          role: "system",
+          content: "System prompt",
+        },
         {
           role: "user",
           content: [

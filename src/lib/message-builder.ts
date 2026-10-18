@@ -6,6 +6,10 @@ import {
 } from "../types/openai";
 
 export class MessageBuilder {
+  /**
+   * The whole conversation, starting with the system prompt, for a request
+   * that does not continue from a stored response.
+   */
   buildMessages(
     currentMessage: string,
     conversationHistory: Message[] = [],
@@ -15,7 +19,7 @@ export class MessageBuilder {
   ): ResponseInputItem[] {
     const messages: ResponseInputItem[] = [];
 
-    if (conversationHistory.length === 0 && systemPrompt) {
+    if (systemPrompt) {
       messages.push({
         role: "system",
         content: systemPrompt,
@@ -39,14 +43,10 @@ export class MessageBuilder {
     history: Message[],
   ): ResponseMessageItem[] {
     return history.map((msg): ResponseMessageItem => {
-      let text = msg.content;
-      if (msg.sender === "user" && msg.pageContent) {
-        const content =
-          msg.pageContent.contentType === "html"
-            ? msg.pageContent.html
-            : msg.pageContent.markdown;
-        text = `<page_context>\nTitle: ${msg.pageContent.title}\nURL: ${msg.pageContent.url}\n\n${content}\n</page_context>\n\n${msg.content}`;
-      }
+      const text =
+        msg.sender === "user"
+          ? this.withPageContext(msg.content, msg.pageContent)
+          : msg.content;
 
       if (msg.sender === "user" && msg.images && msg.images.length > 0) {
         return {
@@ -68,14 +68,7 @@ export class MessageBuilder {
     contextImages?: ImageData[],
     pageContent?: PageContent,
   ): ResponseMessageItem {
-    let text = message;
-    if (pageContent) {
-      const content =
-        pageContent.contentType === "html"
-          ? pageContent.html
-          : pageContent.markdown;
-      text = `<page_context>\nTitle: ${pageContent.title}\nURL: ${pageContent.url}\n\n${content}\n</page_context>\n\n${message}`;
-    }
+    const text = this.withPageContext(message, pageContent);
 
     if (contextImages && contextImages.length > 0) {
       return {
@@ -88,6 +81,16 @@ export class MessageBuilder {
         content: text,
       };
     }
+  }
+
+  /** Prefix a user message with the page it was asked about, if any. */
+  private withPageContext(message: string, pageContent?: PageContent): string {
+    if (!pageContent) return message;
+    const content =
+      pageContent.contentType === "html"
+        ? pageContent.html
+        : pageContent.markdown;
+    return `<page_context>\nTitle: ${pageContent.title}\nURL: ${pageContent.url}\n\n${content}\n</page_context>\n\n${message}`;
   }
 
   private buildMultimodalContent(
