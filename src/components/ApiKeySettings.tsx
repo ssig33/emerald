@@ -9,17 +9,124 @@ import {
   IconButton,
   Divider,
   FormControlLabel,
+  Radio,
   Switch,
 } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { useSettings } from "../hooks/useSettings";
-import { modelLabel } from "../lib/openai/constants";
+import {
+  Add,
+  DeleteOutlined,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
+import {
+  ApiKeyEntry,
+  createApiKeyEntry,
+  useSettings,
+} from "../hooks/useSettings";
+import { DEFAULT_BASE_URL, modelLabel } from "../lib/openai/constants";
+
+interface ApiKeyEditorProps {
+  entry: ApiKeyEntry;
+  index: number;
+  active: boolean;
+  removable: boolean;
+  onChange: (entry: ApiKeyEntry) => void;
+  onActivate: () => void;
+  onRemove: () => void;
+}
+
+const ApiKeyEditor: React.FC<ApiKeyEditorProps> = ({
+  entry,
+  index,
+  active,
+  removable,
+  onChange,
+  onActivate,
+  onRemove,
+}) => {
+  const [showApiKey, setShowApiKey] = useState(false);
+  const name = entry.label || `Key ${index + 1}`;
+
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        p: 1.5,
+        border: 1,
+        borderColor: active ? "primary.main" : "divider",
+        borderRadius: 1,
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <FormControlLabel
+          control={<Radio checked={active} onChange={onActivate} />}
+          label={active ? `${name} (in use)` : `Use ${name}`}
+          sx={{ flex: 1 }}
+        />
+        <IconButton
+          aria-label={`remove ${name}`}
+          onClick={onRemove}
+          disabled={!removable}
+          size="small"
+        >
+          <DeleteOutlined fontSize="small" />
+        </IconButton>
+      </Box>
+
+      <TextField
+        fullWidth
+        size="small"
+        label="Name"
+        value={entry.label}
+        onChange={(e) => onChange({ ...entry, label: e.target.value })}
+        margin="dense"
+      />
+
+      <TextField
+        fullWidth
+        size="small"
+        label="Base URL"
+        value={entry.baseUrl}
+        onChange={(e) => onChange({ ...entry, baseUrl: e.target.value })}
+        placeholder={DEFAULT_BASE_URL}
+        margin="dense"
+        helperText="Responses API server; requests go to <Base URL>/responses."
+      />
+
+      <TextField
+        fullWidth
+        size="small"
+        label="API Key"
+        type={showApiKey ? "text" : "password"}
+        value={entry.apiKey}
+        onChange={(e) => onChange({ ...entry, apiKey: e.target.value })}
+        placeholder="sk-..."
+        margin="dense"
+        slotProps={{
+          input: {
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label={`toggle ${name} visibility`}
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  edge="end"
+                >
+                  {showApiKey ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          },
+        }}
+      />
+    </Box>
+  );
+};
 
 const ApiKeySettings: React.FC = () => {
   const { settings, loading, saveSettings } = useSettings();
-  const [apiKey, setApiKey] = useState(settings.openaiApiKey);
+  const [apiKeys, setApiKeys] = useState(settings.apiKeys);
+  const [activeApiKeyId, setActiveApiKeyId] = useState(settings.activeApiKeyId);
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [s3Endpoint, setS3Endpoint] = useState(settings.s3Endpoint);
   const [s3Region, setS3Region] = useState(settings.s3Region);
   const [s3Bucket, setS3Bucket] = useState(settings.s3Bucket);
@@ -36,7 +143,8 @@ const ApiKeySettings: React.FC = () => {
 
   useEffect(() => {
     if (loading) return;
-    setApiKey(settings.openaiApiKey);
+    setApiKeys(settings.apiKeys);
+    setActiveApiKeyId(settings.activeApiKeyId);
     setSystemPrompt(settings.systemPrompt);
     setS3Endpoint(settings.s3Endpoint);
     setS3Region(settings.s3Region);
@@ -55,7 +163,8 @@ const ApiKeySettings: React.FC = () => {
     setSaveStatus("saving");
     try {
       await saveSettings({
-        openaiApiKey: apiKey,
+        apiKeys,
+        activeApiKeyId,
         systemPrompt,
         s3Endpoint,
         s3Region,
@@ -75,9 +184,24 @@ const ApiKeySettings: React.FC = () => {
     }
   };
 
-  const isValidApiKey = (key: string) => {
-    return key.length > 0;
+  const updateEntry = (updated: ApiKeyEntry) => {
+    setApiKeys((entries) =>
+      entries.map((entry) => (entry.id === updated.id ? updated : entry)),
+    );
   };
+
+  const addEntry = () => {
+    const entry = createApiKeyEntry({ label: "" });
+    setApiKeys((entries) => [...entries, entry]);
+  };
+
+  const removeEntry = (id: string) => {
+    const remaining = apiKeys.filter((entry) => entry.id !== id);
+    setApiKeys(remaining);
+    if (activeApiKeyId === id) setActiveApiKeyId(remaining[0].id);
+  };
+
+  const activeEntry = apiKeys.find((entry) => entry.id === activeApiKeyId);
 
   return (
     <Box sx={{ p: 2 }}>
@@ -85,37 +209,33 @@ const ApiKeySettings: React.FC = () => {
         API Settings
       </Typography>
 
-      <TextField
-        fullWidth
-        label="OpenAI API Key"
-        type={showApiKey ? "text" : "password"}
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-        placeholder="sk-..."
-        margin="normal"
-        error={apiKey.length > 0 && !isValidApiKey(apiKey)}
-        helperText="API key for the OpenAI Responses API"
-        slotProps={{
-          input: {
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  aria-label="toggle api key visibility"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  edge="end"
-                >
-                  {showApiKey ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
+      <Typography variant="body2" color="text.secondary">
+        Keys for Responses API servers. The selected key is used for every
+        request; switch keys here or above the chat input.
+      </Typography>
+
+      {apiKeys.map((entry, index) => (
+        <ApiKeyEditor
+          key={entry.id}
+          entry={entry}
+          index={index}
+          active={entry.id === activeApiKeyId}
+          removable={apiKeys.length > 1}
+          onChange={updateEntry}
+          onActivate={() => setActiveApiKeyId(entry.id)}
+          onRemove={() => removeEntry(entry.id)}
+        />
+      ))}
+
+      <Button startIcon={<Add />} onClick={addEntry} sx={{ mt: 1 }}>
+        Add key
+      </Button>
 
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
         Model: {modelLabel(settings.model)} ({settings.model}, reasoning effort:{" "}
         {settings.reasoningEffort}). Pick the model and the reasoning effort
-        above the chat input. Web search is handled by the built-in OpenAI tool.
+        above the chat input. Web search is handled by the server&apos;s
+        built-in tool.
       </Typography>
 
       <TextField
@@ -236,8 +356,7 @@ const ApiKeySettings: React.FC = () => {
         variant="contained"
         onClick={handleSave}
         disabled={
-          !apiKey ||
-          !isValidApiKey(apiKey) ||
+          !activeEntry?.apiKey ||
           !systemPrompt.trim() ||
           saveStatus === "saving"
         }

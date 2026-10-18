@@ -155,6 +155,46 @@ describe("ModelSelector", () => {
     });
   });
 
+  it("offers no key picker while only one key is saved", async () => {
+    await renderExpanded();
+
+    expect(screen.queryByRole("combobox", { name: "API key" })).toBeNull();
+  });
+
+  it("switches the API key", async () => {
+    vi.mocked(chromeMock.storage.local.get).mockResolvedValue({
+      settings: {
+        apiKeys: [
+          {
+            id: "openai",
+            label: "OpenAI",
+            baseUrl: "https://api.openai.com/v1",
+            apiKey: "sk-openai",
+          },
+          {
+            id: "other",
+            label: "Other",
+            baseUrl: "https://example.com/v1",
+            apiKey: "other-key",
+          },
+        ],
+        activeApiKeyId: "openai",
+      },
+    });
+
+    const user = await renderExpanded();
+    expect(toggleButton()).toHaveTextContent("OpenAI · Luna · max");
+
+    await openSelect(user, "API key");
+    await user.click(screen.getByRole("option", { name: "Other" }));
+
+    await waitFor(() => {
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
+        settings: expect.objectContaining({ activeApiKeyId: "other" }),
+      });
+    });
+  });
+
   it("persists a reasoning effort change", async () => {
     const user = await renderExpanded();
 

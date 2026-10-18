@@ -1,6 +1,13 @@
 import { ReasoningEffort } from "../../types/openai";
 
-export const RESPONSES_URL = "https://api.openai.com/v1/responses";
+/** Base URL of the OpenAI API; `/responses` is appended to reach the endpoint. */
+export const DEFAULT_BASE_URL = "https://api.openai.com/v1";
+
+/** Responses API endpoint of a server, given its base URL. */
+export function responsesUrl(baseUrl = DEFAULT_BASE_URL): string {
+  const base = baseUrl.trim() || DEFAULT_BASE_URL;
+  return `${base.replace(/\/+$/, "")}/responses`;
+}
 
 /** Model IDs of the GPT-6 capability tiers exposed by the Responses API. */
 export const MODEL_IDS = ["gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna"] as const;

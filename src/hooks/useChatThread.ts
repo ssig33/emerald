@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Message, ToolInteraction } from "../types";
+import { Message, ResponseReference, ToolInteraction } from "../types";
 import { groupChatStorage, TAB_GROUP_ID_NONE } from "../utils/groupChatStorage";
 import { normalizeCjkMarkdown } from "../lib/markdown/cjk-normalize";
 
@@ -87,7 +87,7 @@ export const useChatThread = () => {
     });
   };
 
-  const completeLastMessage = (toolInteractions?: ToolInteraction[]) => {
+  const completeLastMessage = (response?: ResponseReference) => {
     setMessages((prev) => {
       const newMessages = [...prev];
       if (newMessages.length > 0) {
@@ -97,10 +97,8 @@ export const useChatThread = () => {
             ...lastMessage,
             content: normalizeCjkMarkdown(lastMessage.content),
             status: "done",
-            toolInteractions:
-              toolInteractions && toolInteractions.length > 0
-                ? toolInteractions
-                : lastMessage.toolInteractions,
+            responseId: response?.responseId,
+            apiKeyId: response?.apiKeyId,
           };
         }
       }

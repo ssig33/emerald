@@ -64,6 +64,8 @@ export interface ResponsesRequest {
   tool_choice: "auto";
   reasoning: { effort: ReasoningEffort };
   stream: boolean;
+  /** Continue from a response the server keeps, sending only the new input. */
+  previous_response_id?: string;
 }
 
 /** Item emitted by the model, as delivered by response.output_item.* events. */
@@ -87,7 +89,13 @@ export interface ResponseStreamEvent {
   item?: ResponseOutputItem;
   message?: string;
   code?: string;
+  /** Fields of a `toolcall` event: a tool the server ran on its own. */
+  name?: string;
+  status?: string;
+  arguments?: string;
+  output?: string;
   response?: {
+    id?: string;
     status?: string;
     error?: {
       message?: string;

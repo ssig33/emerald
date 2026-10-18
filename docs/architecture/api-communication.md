@@ -2,17 +2,19 @@
 
 ## Overview
 
-The API communication system targets the **OpenAI Responses API** exclusively and
-is designed around **streaming responses**, **tool execution**, and **modular
-responsibility separation**. The architecture supports real-time conversation
-updates while maintaining robust error handling and extensibility.
+The API communication system targets the **Responses API**, either OpenAI's or
+any server compatible with it, and is designed around **streaming responses**,
+**tool execution**, and **modular responsibility separation**. The architecture
+supports real-time conversation updates while maintaining robust error handling
+and extensibility.
 
-The endpoint, the selectable models and the selectable reasoning efforts live in
-`src/lib/openai/constants.ts`:
+The default base URL, the selectable models and the selectable reasoning efforts
+live in `src/lib/openai/constants.ts`:
 
 | Setting           | Value                                           |
 | ----------------- | ----------------------------------------------- |
-| Endpoint          | `https://api.openai.com/v1/responses`           |
+| Default base URL  | `https://api.openai.com/v1`                     |
+| Endpoint          | `<base URL>/responses`                          |
 | Models            | `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`      |
 | Default model     | `gpt-6-luna`                                    |
 | Reasoning efforts | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
@@ -22,9 +24,26 @@ The model tiers are surfaced in the UI as Astra, Sol and Luna. Astra and Sol do
 not accept the `none` effort, so the reasoning picker only lists the efforts the
 selected model accepts; switching to a model that rejects the current effort
 moves to its lightest accepted effort. The user-provided
-API settings are the OpenAI API key, the model and the reasoning effort; the
-latter two are picked from the chat UI and stored in `chrome.storage.local`
-alongside the other settings.
+API settings are the API keys, the model and the reasoning effort, all stored in
+`chrome.storage.local` alongside the other settings.
+
+### API keys
+
+`settings.apiKeys` is a list of `{ id, label, baseUrl, apiKey }` entries with at
+least one entry, and `settings.activeApiKeyId` names the one requests are sent
+with (`activeApiKey()` in `src/hooks/useSettings.ts`). Keys are edited in the
+settings drawer; the active key is switched there or, once more than one key is
+saved, from the picker above the chat input (`selectApiKey()`). A stored
+single `openaiApiKey` is read as the first entry of the list.
+
+### Conversation state
+
+Every finished answer records the ID of the response it ended with and the key
+it was made with (`Message.responseId`, `Message.apiKeyId`). The next request
+sends `previous_response_id` with only the new user message, so the server
+carries the conversation. When the last answer was made with another key, or
+has no response ID, the whole conversation is sent instead, starting with the
+system prompt.
 
 ## Architecture Components
 
@@ -64,9 +83,16 @@ interface OpenAIClient {
   sendMessage(
     input: ResponseInputItem[],
     callbacks: StreamCallbacks,
+    previousResponseId?: string,
   ): Promise<void>;
 }
 ```
+
+When a response stops on function calls, the client runs them and sends the
+`function_call_output` items (plus a user message with any images the tools
+produced) with `previous_response_id` set to that response. If the server never
+announced a response ID, the whole input is replayed with the calls and their
+outputs instead.
 
 **Request Shape**:
 
@@ -100,6 +126,8 @@ application events.
 - `response.output_text.delta`: Streamed assistant text
 - `response.output_item.done` with a `function_call` item: A local tool has to run
 - `response.output_item.done` with a `web_search_call` item: Reported as tool activity
+- `toolcall` with `status: "completed"`: A tool the server ran on its own, reported as tool activity
+- Any event carrying `response.id` (`response.created`, `response.completed`, …): Records the response ID handed to `onComplete`
 - `error`, `response.failed`, `response.incomplete`: Turned into a `StreamError`
 
 **Processing Flow**:
@@ -210,7 +238,7 @@ interface StreamCallbacks {
   onContent?: (content: string) => void; // Real-time text updates
   onToolCalls?: (calls: FunctionCallItem[]) => void; // Tool execution trigger
   onToolActivity?: (interactions: ToolInteraction[]) => void; // Tool transcript
-  onComplete?: () => void; // Stream completion
+  onComplete?: (responseId?: string) => void; // Stream completion
   onError?: (error: Error) => void; // Error handling
 }
 ```
@@ -291,18 +319,18 @@ OpenAI function_call → ToolExecutor.execute() → Chrome API Call → function
 
 ```typescript
 interface OpenAIClientConfig {
-  apiKey: string; // Required: OpenAI API authentication
+  apiKey: string; // Required: sent as a Bearer token
+  baseUrl?: string; // Defaults to https://api.openai.com/v1
   model?: ModelId; // Defaults to gpt-6-luna
   reasoningEffort?: ReasoningEffort; // Defaults to max
 }
 ```
 
-The endpoint and the tools are compiled in, so there is no provider or endpoint
-selection to configure.
+The tools are compiled in; the server comes from the active API key.
 
 ### 2. Runtime Configuration
 
-- API key validation
+- API keys and the active one
 - Model and reasoning effort selection
 - System prompt
 - Conversation storage (S3 / MinIO) settings

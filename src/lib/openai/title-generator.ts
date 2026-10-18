@@ -4,11 +4,12 @@ import {
   DEFAULT_MODEL,
   DEFAULT_REASONING_EFFORT,
   ModelId,
-  RESPONSES_URL,
+  responsesUrl,
 } from "./constants";
 
 export interface TitleGeneratorConfig {
   apiKey: string;
+  baseUrl?: string;
   model?: ModelId;
   reasoningEffort?: ReasoningEffort;
 }
@@ -65,7 +66,7 @@ export async function generateConversationTitle(
   if (!transcript) return null;
 
   try {
-    const response = await fetch(RESPONSES_URL, {
+    const response = await fetch(responsesUrl(config.baseUrl), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -126,6 +126,24 @@ describe("useChatThread", () => {
     expect(result.current.messages[0].status).toBe("done");
   });
 
+  it("records the response the answer ended with", async () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockAIMessage);
+    });
+
+    await act(async () => {
+      result.current.completeLastMessage({
+        responseId: "resp_1",
+        apiKeyId: "key-a",
+      });
+    });
+
+    expect(result.current.messages[0].responseId).toBe("resp_1");
+    expect(result.current.messages[0].apiKeyId).toBe("key-a");
+  });
+
   it("normalizes CJK markdown on completion", async () => {
     const { result } = renderHook(() => useChatThread());
 
