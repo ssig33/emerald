@@ -195,19 +195,24 @@ describe("OpenAIClient", () => {
 
 ### 1. Chrome API Mocking
 
-```typescript
-// src/test/mocks/chrome.ts
-export const mockChromeStorage = {
-  local: {
-    get: vi.fn().mockResolvedValue({}),
-    set: vi.fn().mockResolvedValue(undefined),
-  },
-};
+`src/test/mocks/chrome.ts` installs `chromeMock` as the global `chrome`. Its
+`storage.local` and `storage.session` keep what is written to them, so a test
+seeds stored values with `set`, and clears the area in `beforeEach`.
+`emitStorageChange` delivers a change to the `storage.onChanged` listeners, as a
+write from another part of the extension would.
 
-export const mockChromeTabs = {
-  query: vi.fn().mockResolvedValue([{ id: 123 }]),
-  sendMessage: vi.fn().mockResolvedValue({ text: "mock content" }),
-};
+```typescript
+import { chromeMock, emitStorageChange } from "../../test/mocks/chrome";
+
+beforeEach(async () => {
+  await chromeMock.storage.local.clear();
+  vi.clearAllMocks();
+});
+
+it("restores the stored model", async () => {
+  await chromeMock.storage.local.set({ settings: { model: "gpt-6.1-sol" } });
+  // ...
+});
 ```
 
 ### 2. API Response Mocking
@@ -352,11 +357,11 @@ it("should process large streams efficiently", async () => {
 ### 1. Test Execution
 
 ```bash
-# Run all tests
-pnpm test
+# Run all tests once
+pnpm test --run
 
 # Run tests in watch mode
-pnpm test --watch
+pnpm test
 ```
 
 ### 2. Coverage Requirements

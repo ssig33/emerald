@@ -181,7 +181,9 @@ const outputs = await toolExecutor.execute(functionCalls);
 
 - Conversation history → input message items
 - Multimodal content (`input_text` + `input_image`) → structured format
-- System prompt injection for new conversations
+- System prompt at the head of the input whenever the whole conversation is sent
+- The new user message alone (`buildCurrentMessage`) when continuing from `previous_response_id`
+- Page context (`<page_context>`) prepended to the user message it was attached to
 - Message role mapping (user/ai → user/assistant)
 
 ## Message Flow Patterns
@@ -376,7 +378,7 @@ private async executeSingleTool(
 
 ```typescript
 // Extend MessageBuilder for new content types
-buildMessages(message, history, systemPrompt, contextData) {
+buildMessages(message, history, systemPrompt, images, pageContent) {
   // Handle new context data types
   // Apply custom formatting rules
   // Return Responses API input items
