@@ -120,6 +120,57 @@ describe("StreamProcessor", () => {
       expect(onComplete).toHaveBeenCalled();
     });
 
+    it("should report tools the server ran as tool activity", async () => {
+      const response = createMockResponse([
+        'event: toolcall\ndata: {"type":"toolcall","call_id":"call_1","name":"getUrlContent","status":"started","arguments":"{\\"url\\":\\"https://example.com\\"}"}\n\n',
+        'event: toolcall\ndata: {"type":"toolcall","call_id":"call_1","name":"getUrlContent","status":"completed","arguments":"{\\"url\\":\\"https://example.com\\"}","output":"Example Domain"}\n\n',
+        textDelta("Done"),
+        completed,
+      ]);
+      const onToolActivity = vi.fn();
+
+      await streamProcessor.processStream(response, { onToolActivity });
+
+      expect(onToolActivity).toHaveBeenCalledTimes(1);
+      expect(onToolActivity).toHaveBeenCalledWith([
+        {
+          name: "getUrlContent",
+          arguments: '{"url":"https://example.com"}',
+          result: "Example Domain",
+        },
+      ]);
+    });
+
+    it("should hand the response ID to the completion callback", async () => {
+      const response = createMockResponse([
+        'data: {"type":"response.created","response":{"id":"resp_1","status":"in_progress"}}\n',
+        textDelta("Hi"),
+        'data: {"type":"response.completed","response":{"id":"resp_1","status":"completed"}}\n',
+      ]);
+      const onComplete = vi.fn();
+
+      await streamProcessor.processStream(response, { onComplete });
+
+      expect(onComplete).toHaveBeenCalledWith("resp_1");
+      expect(streamProcessor.responseId).toBe("resp_1");
+    });
+
+    it("should skip comment lines", async () => {
+      const response = createMockResponse([
+        ": connected\n\n",
+        textDelta("Hi"),
+        ": ping\n\n",
+        completed,
+      ]);
+      const onContent = vi.fn();
+      const onComplete = vi.fn();
+
+      await streamProcessor.processStream(response, { onContent, onComplete });
+
+      expect(onContent).toHaveBeenCalledWith("Hi");
+      expect(onComplete).toHaveBeenCalled();
+    });
+
     it("should handle error events", async () => {
       const response = createMockResponse([
         'data: {"type":"error","code":"server_error","message":"API Error occurred"}\n',

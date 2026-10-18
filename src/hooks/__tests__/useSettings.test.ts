@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { useSettings } from "../useSettings";
+import { activeApiKey, useSettings } from "../useSettings";
 import { chromeMock, emitStorageChange } from "../../test/mocks/chrome";
 
 describe("useSettings", () => {
@@ -20,7 +20,15 @@ describe("useSettings", () => {
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
 
-    expect(result.current.settings.openaiApiKey).toBe("");
+    expect(result.current.settings.apiKeys).toEqual([
+      {
+        id: "default",
+        label: "OpenAI",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: "",
+      },
+    ]);
+    expect(result.current.settings.activeApiKeyId).toBe("default");
     expect(result.current.settings.systemPrompt).toContain("Emerald");
     expect(result.current.settings.s3Region).toBe("us-east-1");
     expect(result.current.settings.model).toBe("gpt-6-luna");
@@ -161,29 +169,104 @@ describe("useSettings", () => {
 
   it("merges stored settings over the defaults", async () => {
     vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { openaiApiKey: "sk-stored", s3Bucket: "my-bucket" },
+      settings: { s3Bucket: "my-bucket" },
     });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
 
-    expect(result.current.settings.openaiApiKey).toBe("sk-stored");
     expect(result.current.settings.s3Bucket).toBe("my-bucket");
     expect(result.current.settings.s3Region).toBe("us-east-1");
   });
 
-  it("persists updated settings to storage", async () => {
+  it("turns a single stored OpenAI key into the key list", async () => {
+    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
+      settings: { openaiApiKey: "sk-stored" },
+    });
+
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    expect(result.current.settings.apiKeys).toEqual([
+      {
+        id: "default",
+        label: "OpenAI",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: "sk-stored",
+      },
+    ]);
+    expect(activeApiKey(result.current.settings).apiKey).toBe("sk-stored");
+    expect(result.current.settings).not.toHaveProperty("openaiApiKey");
+  });
+
+  const twoKeys = [
+    {
+      id: "openai",
+      label: "OpenAI",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-openai",
+    },
+    {
+      id: "other",
+      label: "Other",
+      baseUrl: "https://example.com/v1",
+      apiKey: "other-key",
+    },
+  ];
+
+  it("restores the stored keys and the active one", async () => {
+    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
+      settings: { apiKeys: twoKeys, activeApiKeyId: "other" },
+    });
+
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    expect(result.current.settings.apiKeys).toEqual(twoKeys);
+    expect(activeApiKey(result.current.settings).baseUrl).toBe(
+      "https://example.com/v1",
+    );
+  });
+
+  it("falls back to the first key when the active one is gone", async () => {
+    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
+      settings: { apiKeys: twoKeys, activeApiKeyId: "deleted" },
+    });
+
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    expect(result.current.settings.activeApiKeyId).toBe("openai");
+  });
+
+  it("switches and persists the active key", async () => {
+    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
+      settings: { apiKeys: twoKeys, activeApiKeyId: "openai" },
+    });
+
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
 
     await act(async () => {
-      await result.current.updateApiKey("sk-new");
+      await result.current.selectApiKey("other");
     });
 
-    expect(result.current.settings.openaiApiKey).toBe("sk-new");
-    expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
-      settings: expect.objectContaining({ openaiApiKey: "sk-new" }),
+    expect(activeApiKey(result.current.settings).apiKey).toBe("other-key");
+    expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
+      settings: expect.objectContaining({ activeApiKeyId: "other" }),
     });
+  });
+
+  it("ignores a switch to a key that does not exist", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    await act(async () => {
+      await result.current.selectApiKey("missing");
+    });
+
+    expect(result.current.settings.activeApiKeyId).toBe("default");
+    expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
   });
 
   it("updates the system prompt", async () => {

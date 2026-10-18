@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Message } from "../types";
-import { useSettings } from "./useSettings";
+import { activeApiKey, useSettings } from "./useSettings";
 import { buildConversationHtml } from "../lib/export/conversation-html";
 import { generateConversationTitle } from "../lib/openai/title-generator";
 import { uploadToS3, S3Config } from "../lib/storage/s3";
@@ -49,9 +49,11 @@ export const useConversationExport = () => {
     setResultUrl(null);
 
     try {
+      const apiKey = activeApiKey(settings);
       const title = await generateConversationTitle(
         {
-          apiKey: settings.openaiApiKey,
+          apiKey: apiKey.apiKey,
+          baseUrl: apiKey.baseUrl,
           model: settings.model,
           reasoningEffort: settings.reasoningEffort,
         },

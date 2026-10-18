@@ -230,6 +230,101 @@ describe("OpenAIClient", () => {
       expect(onComplete).toHaveBeenCalledTimes(1);
     });
 
+    it("should send the request to the OpenAI API by default", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      await client.sendMessage(mockInput, {});
+
+      expect((globalThis.fetch as any).mock.calls[0][0]).toBe(
+        "https://api.openai.com/v1/responses",
+      );
+      expect(
+        (globalThis.fetch as any).mock.calls[0][1].headers.Authorization,
+      ).toBe(`Bearer ${mockApiKey}`);
+    });
+
+    it("should send the request to the configured server", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      const configured = new OpenAIClient({
+        apiKey: "other-key",
+        baseUrl: "https://example.com/v1/",
+      });
+      await configured.sendMessage(mockInput, {});
+
+      expect((globalThis.fetch as any).mock.calls[0][0]).toBe(
+        "https://example.com/v1/responses",
+      );
+      expect(
+        (globalThis.fetch as any).mock.calls[0][1].headers.Authorization,
+      ).toBe("Bearer other-key");
+    });
+
+    it("should continue from the given previous response", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      await client.sendMessage(mockInput, {}, "resp_prev");
+
+      const requestBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[0][1].body,
+      );
+      expect(requestBody.previous_response_id).toBe("resp_prev");
+      expect(requestBody.input).toEqual(mockInput);
+    });
+
+    it("should leave out previous_response_id when there is none", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse([textDelta("test")]));
+
+      await client.sendMessage(mockInput, {});
+
+      const requestBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[0][1].body,
+      );
+      expect(requestBody).not.toHaveProperty("previous_response_id");
+    });
+
+    it("should answer function calls against the response that made them", async () => {
+      const firstResponse = createMockResponse([
+        'data: {"type":"response.created","response":{"id":"resp_1"}}\n',
+        functionCallDone("call_1", "get_current_time", "{}"),
+        'data: {"type":"response.completed","response":{"id":"resp_1"}}\n',
+      ]);
+      const secondResponse = createMockResponse([
+        'data: {"type":"response.created","response":{"id":"resp_2"}}\n',
+        textDelta("It is late."),
+        'data: {"type":"response.completed","response":{"id":"resp_2"}}\n',
+      ]);
+
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(firstResponse)
+        .mockResolvedValueOnce(secondResponse);
+
+      const onComplete = vi.fn();
+      await client.sendMessage(mockInput, { onComplete });
+
+      const followUpBody = JSON.parse(
+        (globalThis.fetch as any).mock.calls[1][1].body,
+      );
+      expect(followUpBody.previous_response_id).toBe("resp_1");
+      expect(followUpBody.input).toEqual([
+        {
+          type: "function_call_output",
+          call_id: "call_1",
+          output: expect.stringMatching(/^Current local time:/),
+        },
+      ]);
+      expect(onComplete).toHaveBeenCalledWith("resp_2");
+    });
+
     it("should hand a screenshot back to the model as an image", async () => {
       const firstResponse = createMockResponse([
         functionCallDone(

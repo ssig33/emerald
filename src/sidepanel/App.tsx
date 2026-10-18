@@ -21,7 +21,13 @@ import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
 import ApiKeySettings from "../components/ApiKeySettings";
 import ModelSelector from "../components/ModelSelector";
-import { Message, ImageData, PageContent, ToolInteraction } from "../types";
+import {
+  Message,
+  ImageData,
+  PageContent,
+  ResponseReference,
+  ToolInteraction,
+} from "../types";
 import { useApi } from "../hooks/useApi";
 import { useChatThread } from "../hooks/useChatThread";
 import { useConversationExport } from "../hooks/useConversationExport";
@@ -146,8 +152,8 @@ const App: React.FC = () => {
           appendToLastMessage(chunk);
         },
         // onComplete: response completed
-        () => {
-          completeLastMessage();
+        (response: ResponseReference) => {
+          completeLastMessage(response);
         },
         // onToolActivity: log every tool call into the chat as it runs
         (interactions: ToolInteraction[]) => {

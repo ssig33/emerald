@@ -4,16 +4,31 @@ import { useApi } from "../useApi";
 import { ApiRequest, Message } from "../../types";
 
 // Mock useSettings hook
-vi.mock("../useSettings", () => ({
+vi.mock("../useSettings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../useSettings")>()),
   useSettings: () => ({
     settings: {
-      openaiApiKey: "sk-test-key-123",
+      apiKeys: [
+        {
+          id: "key-a",
+          label: "A",
+          baseUrl: "https://a.example.com/v1",
+          apiKey: "sk-test-key-123",
+        },
+        {
+          id: "key-b",
+          label: "B",
+          baseUrl: "https://b.example.com/v1",
+          apiKey: "sk-other",
+        },
+      ],
+      activeApiKeyId: "key-a",
       systemPrompt: "You are a helpful AI assistant for testing.",
       model: "gpt-6-astra",
       reasoningEffort: "high",
     },
     loading: false,
-    updateApiKey: vi.fn(),
+    selectApiKey: vi.fn(),
     updateSystemPrompt: vi.fn(),
     saveSettings: vi.fn(),
   }),
@@ -77,7 +92,7 @@ describe("useApi", () => {
       .mockImplementation(async (messages, callbacks) => {
         callbacks.onContent?.("Hello");
         callbacks.onContent?.(" World");
-        callbacks.onComplete?.();
+        callbacks.onComplete?.("resp_1");
       });
 
     (OpenAIClient as any).mockImplementation(function () {
@@ -113,6 +128,7 @@ describe("useApi", () => {
 
     expect(OpenAIClient).toHaveBeenCalledWith({
       apiKey: "sk-test-key-123",
+      baseUrl: "https://a.example.com/v1",
       model: "gpt-6-astra",
       reasoningEffort: "high",
     });
@@ -136,13 +152,110 @@ describe("useApi", () => {
         onComplete: expect.any(Function),
         onError: expect.any(Function),
       }),
+      undefined,
     );
 
     expect(onMessage).toHaveBeenCalledWith("Hello");
     expect(onMessage).toHaveBeenCalledWith(" World");
-    expect(onComplete).toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledWith({
+      responseId: "resp_1",
+      apiKeyId: "key-a",
+    });
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe(null);
+  });
+
+  it("continues from the last answer made with the same key", async () => {
+    const { OpenAIClient } = await import("../../lib/openai/client");
+    const { MessageBuilder } = await import("../../lib/message-builder");
+
+    const mockSendMessage = vi.fn();
+    (OpenAIClient as any).mockImplementation(function () {
+      return { sendMessage: mockSendMessage };
+    });
+
+    const mockBuildMessages = vi.fn();
+    const mockBuildCurrentMessage = vi
+      .fn()
+      .mockReturnValue({ role: "user", content: "Hello, OpenAI!" });
+    (MessageBuilder as any).mockImplementation(function () {
+      return {
+        buildMessages: mockBuildMessages,
+        buildCurrentMessage: mockBuildCurrentMessage,
+      };
+    });
+
+    const history: Message[] = [
+      mockConversationHistory[0],
+      {
+        ...mockConversationHistory[1],
+        responseId: "resp_9",
+        apiKeyId: "key-a",
+      },
+    ];
+
+    const { result } = renderHook(() => useApi());
+
+    await act(async () => {
+      await result.current.sendMessage(mockRequest, history);
+    });
+
+    expect(mockBuildMessages).not.toHaveBeenCalled();
+    expect(mockBuildCurrentMessage).toHaveBeenCalledWith(
+      "Hello, OpenAI!",
+      undefined,
+      undefined,
+    );
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      [{ role: "user", content: "Hello, OpenAI!" }],
+      expect.any(Object),
+      "resp_9",
+    );
+  });
+
+  it("sends the whole conversation when the last answer used another key", async () => {
+    const { OpenAIClient } = await import("../../lib/openai/client");
+    const { MessageBuilder } = await import("../../lib/message-builder");
+
+    const mockSendMessage = vi.fn();
+    (OpenAIClient as any).mockImplementation(function () {
+      return { sendMessage: mockSendMessage };
+    });
+
+    const mockBuildMessages = vi
+      .fn()
+      .mockReturnValue([{ role: "user", content: "everything" }]);
+    (MessageBuilder as any).mockImplementation(function () {
+      return { buildMessages: mockBuildMessages };
+    });
+
+    const history: Message[] = [
+      mockConversationHistory[0],
+      {
+        ...mockConversationHistory[1],
+        responseId: "resp_9",
+        apiKeyId: "key-b",
+      },
+    ];
+
+    const { result } = renderHook(() => useApi());
+
+    await act(async () => {
+      await result.current.sendMessage(mockRequest, history);
+    });
+
+    expect(mockBuildMessages).toHaveBeenCalledWith(
+      "Hello, OpenAI!",
+      history,
+      "You are a helpful AI assistant for testing.",
+      undefined,
+      undefined,
+    );
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      [{ role: "user", content: "everything" }],
+      expect.any(Object),
+      undefined,
+    );
   });
 
   it("should send conversation history to OpenAI", async () => {

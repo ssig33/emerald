@@ -7,6 +7,16 @@ export interface Message {
   images?: ImageData[];
   pageContent?: PageContent;
   toolInteractions?: ToolInteraction[];
+  /** Response the answer ended with; the next request continues from it. */
+  responseId?: string;
+  /** API key the answer was made with. A response only exists on its server. */
+  apiKeyId?: string;
+}
+
+/** Where a finished answer lives on the server. */
+export interface ResponseReference {
+  responseId?: string;
+  apiKeyId: string;
 }
 
 export interface ToolInteraction {

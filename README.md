@@ -1,6 +1,7 @@
 # Emerald
 
-AI assistant browser extension built on the OpenAI Responses API. Supports Chrome and Firefox.
+AI assistant browser extension built on the OpenAI Responses API, or any server
+compatible with it. Supports Chrome and Firefox.
 
 ## Features
 
@@ -31,8 +32,19 @@ Load `dist/firefox/manifest.json` as a temporary add-on from `about:debugging#/r
 
 ## Configuration
 
-Set your OpenAI API key in the extension settings. The model and the reasoning
-effort are picked above the chat input, behind a summary button that expands the
+Set your OpenAI API key in the extension settings. Any server that speaks the
+Responses API works too: add a key with its base URL (requests go to
+`<base URL>/responses`). Several keys can be saved; the selected one is used for
+every request, and once there is more than one you can switch keys above the
+chat input as well.
+
+Conversations continue through `previous_response_id`: after the first answer,
+only the new message is sent and the server keeps the rest. Tool results go back
+against the response that asked for them. When the key changes mid-conversation,
+the next request sends the whole conversation again, since the earlier
+responses live on the other key's server.
+
+The model and the reasoning effort are picked above the chat input, behind a summary button that expands the
 pickers when you need them. The selection and the expanded state are stored in
 extension storage, so they persist across restarts and apply to every
 conversation.

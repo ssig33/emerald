@@ -62,7 +62,8 @@ export class MessageBuilder {
     });
   }
 
-  private buildCurrentMessage(
+  /** The new user message alone, for a server that keeps the conversation. */
+  buildCurrentMessage(
     message: string,
     contextImages?: ImageData[],
     pageContent?: PageContent,

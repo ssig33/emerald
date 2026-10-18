@@ -8,10 +8,11 @@ import {
   ResponsesRequest,
 } from "../../types/openai";
 import {
+  DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   DEFAULT_REASONING_EFFORT,
   ModelId,
-  RESPONSES_URL,
+  responsesUrl,
 } from "./constants";
 import { StreamProcessor, StreamCallbacks } from "./stream-processor";
 import {
@@ -22,12 +23,15 @@ import {
 
 export interface OpenAIClientConfig {
   apiKey: string;
+  /** Base URL of the Responses API server. Defaults to the OpenAI API. */
+  baseUrl?: string;
   model?: ModelId;
   reasoningEffort?: ReasoningEffort;
 }
 
 export class OpenAIClient {
   private apiKey: string;
+  private baseUrl: string;
   private model: ModelId;
   private reasoningEffort: ReasoningEffort;
   private streamProcessor: StreamProcessor;
@@ -35,17 +39,24 @@ export class OpenAIClient {
 
   constructor(config: OpenAIClientConfig) {
     this.apiKey = config.apiKey;
+    this.baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
     this.model = config.model ?? DEFAULT_MODEL;
     this.reasoningEffort = config.reasoningEffort ?? DEFAULT_REASONING_EFFORT;
     this.streamProcessor = new StreamProcessor();
     this.toolExecutor = new ToolExecutor();
   }
 
+  /**
+   * Stream an answer. With `previousResponseId` the server continues the
+   * conversation it stored for that response, so `input` only carries what is
+   * new; without it `input` has to hold the whole conversation.
+   */
   async sendMessage(
     input: ResponseInputItem[],
     callbacks: StreamCallbacks,
+    previousResponseId?: string,
   ): Promise<void> {
-    const request = this.buildRequest(input);
+    const request = this.buildRequest(input, previousResponseId);
 
     try {
       const response = await this.makeRequest(request);
@@ -57,7 +68,11 @@ export class OpenAIClient {
         );
       }
 
-      const enhancedCallbacks = this.wrapCallbacks(callbacks, input);
+      const enhancedCallbacks = this.wrapCallbacks(
+        callbacks,
+        input,
+        previousResponseId,
+      );
       await this.streamProcessor.processStream(response, enhancedCallbacks);
     } catch (error) {
       if (error instanceof ApiError) {
@@ -71,7 +86,10 @@ export class OpenAIClient {
     }
   }
 
-  private buildRequest(input: ResponseInputItem[]): ResponsesRequest {
+  private buildRequest(
+    input: ResponseInputItem[],
+    previousResponseId?: string,
+  ): ResponsesRequest {
     return {
       model: this.model,
       input,
@@ -79,11 +97,14 @@ export class OpenAIClient {
       tool_choice: "auto",
       reasoning: { effort: this.reasoningEffort },
       stream: true,
+      ...(previousResponseId
+        ? { previous_response_id: previousResponseId }
+        : {}),
     };
   }
 
   private async makeRequest(request: ResponsesRequest): Promise<Response> {
-    return fetch(RESPONSES_URL, {
+    return fetch(responsesUrl(this.baseUrl), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -96,6 +117,7 @@ export class OpenAIClient {
   private wrapCallbacks(
     originalCallbacks: StreamCallbacks,
     input: ResponseInputItem[],
+    previousResponseId?: string,
   ): StreamCallbacks {
     return {
       ...originalCallbacks,
@@ -111,6 +133,7 @@ export class OpenAIClient {
           );
           await this.continueWithToolOutputs(
             input,
+            previousResponseId,
             functionCalls,
             outputs,
             images,
@@ -175,13 +198,32 @@ export class OpenAIClient {
     return [{ role: "user", content }];
   }
 
+  /**
+   * Answer the function calls. When the server announced the ID of the
+   * response that stopped on them, the outputs go back against that response;
+   * otherwise the whole input is replayed with the calls and their outputs.
+   */
   private async continueWithToolOutputs(
     input: ResponseInputItem[],
+    previousResponseId: string | undefined,
     functionCalls: FunctionCallItem[],
     outputs: FunctionCallOutputItem[],
     images: ToolImageAttachment[],
     callbacks: StreamCallbacks,
   ): Promise<void> {
+    const responseId = this.streamProcessor.responseId;
+    const newItems: ResponseInputItem[] = [
+      ...outputs,
+      ...this.buildImageMessage(images),
+    ];
+
+    this.streamProcessor.reset();
+
+    if (responseId) {
+      await this.sendMessage(newItems, callbacks, responseId);
+      return;
+    }
+
     const replayedCalls: ResponseInputItem[] = functionCalls.map(
       ({ call_id, name, arguments: args }) => ({
         type: "function_call",
@@ -191,14 +233,10 @@ export class OpenAIClient {
       }),
     );
 
-    const updatedInput: ResponseInputItem[] = [
-      ...input,
-      ...replayedCalls,
-      ...outputs,
-      ...this.buildImageMessage(images),
-    ];
-
-    this.streamProcessor.reset();
-    await this.sendMessage(updatedInput, callbacks);
+    await this.sendMessage(
+      [...input, ...replayedCalls, ...newItems],
+      callbacks,
+      previousResponseId,
+    );
   }
 }

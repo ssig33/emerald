@@ -10,7 +10,8 @@ export interface StreamCallbacks {
   onContent?: (content: string) => void;
   onToolCalls?: (functionCalls: FunctionCallItem[]) => void | Promise<void>;
   onToolActivity?: (interactions: ToolInteraction[]) => void;
-  onComplete?: () => void;
+  /** Receives the ID of the last response, to continue the conversation from. */
+  onComplete?: (responseId?: string) => void;
   onError?: (error: Error) => void;
 }
 
@@ -20,11 +21,19 @@ export interface StreamCallbacks {
  * Text arrives as `response.output_text.delta` events. Completed items arrive
  * as `response.output_item.done`: function calls have to be executed locally
  * and answered with a follow-up request, while hosted tools such as web search
- * are already resolved by OpenAI and only reported for visibility.
+ * are already resolved by the server and only reported for visibility. Servers
+ * that run their own tools may report them as `toolcall` events, which are
+ * logged the same way.
  */
 export class StreamProcessor {
   private buffer = "";
   private functionCalls: FunctionCallItem[] = [];
+  private currentResponseId: string | undefined;
+
+  /** ID of the response being streamed, once the server has announced it. */
+  get responseId(): string | undefined {
+    return this.currentResponseId;
+  }
 
   async processStream(
     response: Response,
@@ -62,7 +71,7 @@ export class StreamProcessor {
       return;
     }
 
-    callbacks.onComplete?.();
+    callbacks.onComplete?.(this.currentResponseId);
   }
 
   private processBuffer(callbacks: StreamCallbacks): void {
@@ -101,6 +110,10 @@ export class StreamProcessor {
     event: ResponseStreamEvent,
     callbacks: StreamCallbacks,
   ): void {
+    if (event.response?.id) {
+      this.currentResponseId = event.response.id;
+    }
+
     switch (event.type) {
       case "response.output_text.delta":
         if (event.delta) {
@@ -110,6 +123,17 @@ export class StreamProcessor {
       case "response.output_item.done":
         if (event.item) {
           this.processOutputItem(event.item, callbacks);
+        }
+        return;
+      case "toolcall":
+        if (event.status === "completed" && event.name) {
+          callbacks.onToolActivity?.([
+            {
+              name: event.name,
+              arguments: event.arguments ?? "",
+              result: event.output ?? "",
+            },
+          ]);
         }
         return;
       case "error":
@@ -153,5 +177,6 @@ export class StreamProcessor {
   reset(): void {
     this.buffer = "";
     this.functionCalls = [];
+    this.currentResponseId = undefined;
   }
 }
