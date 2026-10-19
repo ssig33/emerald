@@ -121,6 +121,31 @@ function sanitize(stored: StoredSettings = {}): Settings {
   };
 }
 
+type SettingsChange =
+  Partial<Settings> | ((current: Settings) => Partial<Settings>);
+
+let pendingWrite: Promise<unknown> = Promise.resolve();
+
+/**
+ * Apply a change on top of the stored settings rather than a hook's copy, one
+ * write at a time, so a save never drops another save that has not reached
+ * this hook yet.
+ */
+function writeSettings(change: SettingsChange): Promise<Settings> {
+  const write = pendingWrite.then(async () => {
+    const result = await chrome.storage.local.get(["settings"]);
+    const current = sanitize(result.settings as StoredSettings | undefined);
+    const updated = {
+      ...current,
+      ...(typeof change === "function" ? change(current) : change),
+    };
+    await chrome.storage.local.set({ settings: updated });
+    return updated;
+  });
+  pendingWrite = write.catch(() => undefined);
+  return write;
+}
+
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -159,11 +184,9 @@ export const useSettings = () => {
     }
   };
 
-  const saveSettings = async (newSettings: Partial<Settings>) => {
+  const saveSettings = async (change: SettingsChange) => {
     try {
-      const updatedSettings = { ...settings, ...newSettings };
-      await chrome.storage.local.set({ settings: updatedSettings });
-      setSettings(updatedSettings);
+      setSettings(await writeSettings(change));
     } catch (error) {
       console.error("Failed to save settings:", error);
     }
@@ -180,13 +203,10 @@ export const useSettings = () => {
   };
 
   const updateModel = async (model: ModelId) => {
-    await saveSettings({
+    await saveSettings((current) => ({
       model,
-      reasoningEffort: supportedReasoningEffort(
-        model,
-        settings.reasoningEffort,
-      ),
-    });
+      reasoningEffort: supportedReasoningEffort(model, current.reasoningEffort),
+    }));
   };
 
   const updateReasoningEffort = async (reasoningEffort: ReasoningEffort) => {

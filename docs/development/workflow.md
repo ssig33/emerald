@@ -32,8 +32,8 @@ pnpm test
 # Development commands
 pnpm dev          # Start development server with hot reload
 pnpm build        # Build production version
-pnpm test         # Run test suite
-pnpm test --watch # Run tests in watch mode
+pnpm test         # Run tests in watch mode
+pnpm test --run   # Run the test suite once
 ```
 
 ## Development Process

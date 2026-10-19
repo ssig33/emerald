@@ -4,11 +4,16 @@ import { activeApiKey, useSettings } from "../useSettings";
 import { chromeMock, emitStorageChange } from "../../test/mocks/chrome";
 
 describe("useSettings", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await chromeMock.storage.local.clear();
     vi.clearAllMocks();
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValue({});
-    vi.mocked(chromeMock.storage.local.set).mockResolvedValue(undefined);
   });
+
+  /** Put settings in storage as if an earlier session had saved them. */
+  const storeSettings = async (settings: Record<string, unknown>) => {
+    await chromeMock.storage.local.set({ settings });
+    vi.mocked(chromeMock.storage.local.set).mockClear();
+  };
 
   const waitLoaded = async (result: { current: { loading: boolean } }) => {
     await waitFor(() => {
@@ -37,9 +42,7 @@ describe("useSettings", () => {
   });
 
   it("restores the stored model and reasoning effort", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { model: "gpt-6.1-sol", reasoningEffort: "medium" },
-    });
+    await storeSettings({ model: "gpt-6.1-sol", reasoningEffort: "medium" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -49,8 +52,9 @@ describe("useSettings", () => {
   });
 
   it("falls back to the defaults for unknown stored values", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { model: "gpt-6-unknown", reasoningEffort: "ludicrous" },
+    await storeSettings({
+      model: "gpt-6-unknown",
+      reasoningEffort: "ludicrous",
     });
 
     const { result } = renderHook(() => useSettings());
@@ -61,9 +65,7 @@ describe("useSettings", () => {
   });
 
   it("moves an effort the stored model rejects to its lightest effort", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { model: "gpt-6.1-sol", reasoningEffort: "none" },
-    });
+    await storeSettings({ model: "gpt-6.1-sol", reasoningEffort: "none" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -129,9 +131,7 @@ describe("useSettings", () => {
   });
 
   it("restores the stored model selector expanded state", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { modelSelectorOpen: true },
-    });
+    await storeSettings({ modelSelectorOpen: true });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -168,9 +168,7 @@ describe("useSettings", () => {
   });
 
   it("merges stored settings over the defaults", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { s3Bucket: "my-bucket" },
-    });
+    await storeSettings({ s3Bucket: "my-bucket" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -180,9 +178,7 @@ describe("useSettings", () => {
   });
 
   it("turns a single stored OpenAI key into the key list", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { openaiApiKey: "sk-stored" },
-    });
+    await storeSettings({ openaiApiKey: "sk-stored" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -215,9 +211,7 @@ describe("useSettings", () => {
   ];
 
   it("restores the stored keys and the active one", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { apiKeys: twoKeys, activeApiKeyId: "other" },
-    });
+    await storeSettings({ apiKeys: twoKeys, activeApiKeyId: "other" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -229,9 +223,7 @@ describe("useSettings", () => {
   });
 
   it("falls back to the first key when the active one is gone", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { apiKeys: twoKeys, activeApiKeyId: "deleted" },
-    });
+    await storeSettings({ apiKeys: twoKeys, activeApiKeyId: "deleted" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -240,9 +232,7 @@ describe("useSettings", () => {
   });
 
   it("switches and persists the active key", async () => {
-    vi.mocked(chromeMock.storage.local.get).mockResolvedValueOnce({
-      settings: { apiKeys: twoKeys, activeApiKeyId: "openai" },
-    });
+    await storeSettings({ apiKeys: twoKeys, activeApiKeyId: "openai" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
@@ -278,5 +268,68 @@ describe("useSettings", () => {
     });
 
     expect(result.current.settings.systemPrompt).toBe("Be terse.");
+  });
+
+  it("keeps both of two saves made before a re-render", async () => {
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    await act(async () => {
+      await Promise.all([
+        result.current.updateModel("gpt-6-astra"),
+        result.current.updateModelSelectorOpen(true),
+      ]);
+    });
+
+    expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
+      settings: expect.objectContaining({
+        model: "gpt-6-astra",
+        modelSelectorOpen: true,
+      }),
+    });
+    expect(result.current.settings.model).toBe("gpt-6-astra");
+    expect(result.current.settings.modelSelectorOpen).toBe(true);
+  });
+
+  it("keeps a save made through another hook instance", async () => {
+    const first = renderHook(() => useSettings());
+    const second = renderHook(() => useSettings());
+    await waitLoaded(first.result);
+    await waitLoaded(second.result);
+
+    await act(async () => {
+      await first.result.current.updateModel("gpt-6.1-sol");
+    });
+    await act(async () => {
+      await second.result.current.updateSystemPrompt("Be terse.");
+    });
+
+    expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
+      settings: expect.objectContaining({
+        model: "gpt-6.1-sol",
+        systemPrompt: "Be terse.",
+      }),
+    });
+  });
+
+  it("adjusts the reasoning effort against the stored one", async () => {
+    const first = renderHook(() => useSettings());
+    const second = renderHook(() => useSettings());
+    await waitLoaded(first.result);
+    await waitLoaded(second.result);
+
+    await act(async () => {
+      await first.result.current.updateReasoningEffort("none");
+    });
+    await act(async () => {
+      await second.result.current.updateModel("gpt-6-astra");
+    });
+
+    expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
+      settings: expect.objectContaining({
+        model: "gpt-6-astra",
+        reasoningEffort: "low",
+      }),
+    });
   });
 });
