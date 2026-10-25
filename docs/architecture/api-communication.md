@@ -74,7 +74,7 @@ system prompt.
 - Request payload construction (model, tools, reasoning effort)
 - Stream processing coordination
 - Tool execution integration
-- Error handling and retry logic
+- Error reporting (no retries: a failed request ends the answer)
 
 **Interface**:
 
@@ -93,6 +93,11 @@ When a response stops on function calls, the client runs them and sends the
 produced) with `previous_response_id` set to that response. If the server never
 announced a response ID, the whole input is replayed with the calls and their
 outputs instead.
+
+One message allows at most `MAX_TOOL_ROUNDS` (20) of these follow-ups. When the
+model asks for tools once more after that, the calls are not run and `onError`
+reports that the answer was stopped; the browser tools run without
+confirmation, so this keeps a model from driving the page indefinitely.
 
 **Request Shape**:
 
@@ -156,6 +161,8 @@ carries the tool outputs has streamed its own answer.
   - Returns current local time in readable format
   - Essential for temporal context in conversations
   - Automatically called at conversation start for time-aware responses
+- `browser_*`: Read and drive the active tab (`src/lib/tools/browser-tools.ts`,
+  see [browser-agent.md](./browser-agent.md))
 
 **Hosted Tools**:
 
@@ -166,10 +173,14 @@ carries the tool outputs has streamed its own answer.
 **Execution Pattern**:
 
 ```typescript
-// Tool execution is async and error-isolated
-const outputs = await toolExecutor.execute(functionCalls);
-// Each function call gets individual error handling
+// Calls run one after another; each failure becomes an "Error: ..." output
+const { outputs, images } = await toolExecutor.execute(functionCalls);
 ```
+
+`outputs` holds one `function_call_output` per call. `images` holds the
+pictures tools produced (`ToolImageAttachment`, tied to the call by `callId`);
+a function call output is text only, so the client sends them as a user message
+after the outputs.
 
 **Error Isolation**: Tool failures don't break the conversation flow.
 
@@ -281,17 +292,21 @@ OpenAI function_call → ToolExecutor.execute() → Chrome API Call → function
 
 ### 1. Layered Error Management
 
-**API Level Errors**:
+**API Level Errors** (`ApiError`, thrown from `sendMessage`):
 
-- HTTP errors (network, authentication, rate limits)
-- Malformed responses
-- Timeout handling
+- Network failures
+- Non-2xx responses: the message is `HTTP <status>: <detail>`, where the detail
+  is `error.message` of a JSON body, else the body text, else the status text
+  (which is empty over HTTP/2)
 
-**Stream Level Errors**:
+**Stream Level Errors** (`StreamError`, reported through `onError`):
 
 - Invalid JSON in stream
-- Unexpected stream termination
-- Buffer overflow protection
+- Failed reads of the stream
+- `error`, `response.failed` and `response.incomplete` events
+
+**Tool Round Limit**: more than `MAX_TOOL_ROUNDS` follow-ups for one message,
+reported through `onError`
 
 **Tool Level Errors**:
 
@@ -299,21 +314,12 @@ OpenAI function_call → ToolExecutor.execute() → Chrome API Call → function
 - Tab access failures
 - Content script communication errors
 
-### 2. Error Recovery Patterns
+### 2. Error Recovery
 
-**Retry Logic**:
-
-```typescript
-// Exponential backoff for transient errors
-// Circuit breaker for persistent failures
-// Fallback to degraded functionality
-```
-
-**User Experience**:
-
-- Clear error messages for user-actionable issues
-- Silent retry for transient network issues
-- Graceful degradation when tools are unavailable
+There is no automatic retry, timeout or backoff. `useApi` shows the error
+message in the chat and ends the loading state; the user sends the message
+again to retry. A tool that fails does not end the answer: its error text goes
+back to the model as the tool output.
 
 ## Configuration Management
 
@@ -361,18 +367,24 @@ The tools are compiled in; the server comes from the active API key.
 
 ### 1. Adding New Tools
 
+Add the definition to `AVAILABLE_TOOLS` and a case to `executeSingleTool`,
+which returns the output and, optionally, an image:
+
 ```typescript
-// Extend ToolExecutor with new tool
 private async executeSingleTool(
   functionCall: FunctionCallItem,
-): Promise<FunctionCallOutputItem> {
+): Promise<SingleToolResult> {
+  // browser_* tools are dispatched to executeBrowserTool first
   switch (functionCall.name) {
     case "new_tool_name":
-      return await this.executeNewTool(functionCall.call_id);
+      return { output: this.executeNewTool(functionCall.call_id) };
     // ... existing cases
   }
 }
 ```
+
+Browser tools are defined in `BROWSER_TOOLS` and run by `executeBrowserTool` in
+`src/lib/tools/browser-tools.ts` instead.
 
 ### 2. Custom Message Formatting
 

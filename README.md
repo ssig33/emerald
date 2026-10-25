@@ -71,4 +71,4 @@ cannot be driven. See [docs/architecture/browser-agent.md](./docs/architecture/b
 
 ## License
 
-GPL-3.0
+WTFPL (see [LICENSE](./LICENSE))
