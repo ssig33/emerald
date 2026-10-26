@@ -21,6 +21,12 @@ import {
   getAvailableTools,
 } from "../tools/executor";
 
+/**
+ * Tool-output follow-ups allowed for one message. Browser tools run without
+ * confirmation, so a model that keeps calling them is stopped here.
+ */
+export const MAX_TOOL_ROUNDS = 20;
+
 export interface OpenAIClientConfig {
   apiKey: string;
   /** Base URL of the Responses API server. Defaults to the OpenAI API. */
@@ -56,6 +62,16 @@ export class OpenAIClient {
     callbacks: StreamCallbacks,
     previousResponseId?: string,
   ): Promise<void> {
+    await this.send(input, callbacks, previousResponseId, 0);
+  }
+
+  /** `toolRounds` counts the tool-output follow-ups made so far for this message. */
+  private async send(
+    input: ResponseInputItem[],
+    callbacks: StreamCallbacks,
+    previousResponseId: string | undefined,
+    toolRounds: number,
+  ): Promise<void> {
     const request = this.buildRequest(input, previousResponseId);
 
     try {
@@ -63,7 +79,7 @@ export class OpenAIClient {
 
       if (!response.ok) {
         throw new ApiError(
-          `HTTP ${response.status}: ${response.statusText}`,
+          `HTTP ${response.status}: ${await this.errorDetail(response)}`,
           response.status,
         );
       }
@@ -72,6 +88,7 @@ export class OpenAIClient {
         callbacks,
         input,
         previousResponseId,
+        toolRounds,
       );
       await this.streamProcessor.processStream(response, enhancedCallbacks);
     } catch (error) {
@@ -114,14 +131,49 @@ export class OpenAIClient {
     });
   }
 
+  /**
+   * The reason the server gave for a failed request: `error.message` of a JSON
+   * body, else the body itself, else the status text (empty over HTTP/2).
+   */
+  private async errorDetail(response: Response): Promise<string> {
+    let body = "";
+    try {
+      body = (await response.text()).trim();
+    } catch {
+      // Fall back to the status text.
+    }
+
+    if (body) {
+      try {
+        const message = JSON.parse(body)?.error?.message;
+        if (typeof message === "string" && message) return message;
+      } catch {
+        // Not JSON: show the body as it is.
+      }
+      return body;
+    }
+
+    return response.statusText || "Request failed";
+  }
+
   private wrapCallbacks(
     originalCallbacks: StreamCallbacks,
     input: ResponseInputItem[],
-    previousResponseId?: string,
+    previousResponseId: string | undefined,
+    toolRounds: number,
   ): StreamCallbacks {
     return {
       ...originalCallbacks,
       onToolCalls: async (functionCalls: FunctionCallItem[]) => {
+        if (toolRounds >= MAX_TOOL_ROUNDS) {
+          originalCallbacks.onError?.(
+            new Error(
+              `Stopped after ${MAX_TOOL_ROUNDS} rounds of tool calls without a final answer.`,
+            ),
+          );
+          return;
+        }
+
         try {
           const { outputs, images } =
             await this.toolExecutor.execute(functionCalls);
@@ -138,6 +190,7 @@ export class OpenAIClient {
             outputs,
             images,
             originalCallbacks,
+            toolRounds + 1,
           );
         } catch (error) {
           originalCallbacks.onError?.(
@@ -210,6 +263,7 @@ export class OpenAIClient {
     outputs: FunctionCallOutputItem[],
     images: ToolImageAttachment[],
     callbacks: StreamCallbacks,
+    toolRounds: number,
   ): Promise<void> {
     const responseId = this.streamProcessor.responseId;
     const newItems: ResponseInputItem[] = [
@@ -220,7 +274,7 @@ export class OpenAIClient {
     this.streamProcessor.reset();
 
     if (responseId) {
-      await this.sendMessage(newItems, callbacks, responseId);
+      await this.send(newItems, callbacks, responseId, toolRounds);
       return;
     }
 
@@ -233,10 +287,11 @@ export class OpenAIClient {
       }),
     );
 
-    await this.sendMessage(
+    await this.send(
       [...input, ...replayedCalls, ...newItems],
       callbacks,
       previousResponseId,
+      toolRounds,
     );
   }
 }

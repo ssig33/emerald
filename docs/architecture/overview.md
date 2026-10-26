@@ -164,7 +164,7 @@ class StreamError extends Error {
 
 ### 3. Graceful Degradation
 
-- Network errors: Show retry options
+- Network and HTTP errors: Show the error message; the user sends again to retry
 - Tool errors: Continue conversation with error message
 - Streaming errors: Fallback to error state
 

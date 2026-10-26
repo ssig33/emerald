@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { OpenAIClient } from "../client";
+import { MAX_TOOL_ROUNDS, OpenAIClient } from "../client";
 import { ResponseInputItem, ApiError } from "../../../types/openai";
 
 const createMockReader = (chunks: string[]) => {
@@ -20,6 +20,7 @@ const createMockResponse = (chunks: string[], status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
   statusText: status === 200 ? "OK" : "Error",
+  text: () => Promise.resolve(""),
   body: {
     getReader: () => createMockReader(chunks),
   },
@@ -170,6 +171,118 @@ describe("OpenAIClient", () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([], 500));
 
       await expect(client.sendMessage(mockInput, {})).rejects.toThrow(ApiError);
+    });
+
+    it("should report the error message from the response body", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: "",
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              error: { message: "Unsupported value: 'none'" },
+            }),
+          ),
+      });
+
+      await expect(client.sendMessage(mockInput, {})).rejects.toThrow(
+        "HTTP 400: Unsupported value: 'none'",
+      );
+    });
+
+    it("should report a body that is not JSON as it is", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        statusText: "",
+        text: () => Promise.resolve("Bad gateway\n"),
+      });
+
+      await expect(client.sendMessage(mockInput, {})).rejects.toThrow(
+        "HTTP 502: Bad gateway",
+      );
+    });
+
+    it("should fall back to the status text when the body is empty", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        text: () => Promise.resolve(""),
+      });
+
+      await expect(client.sendMessage(mockInput, {})).rejects.toThrow(
+        "HTTP 503: Service Unavailable",
+      );
+    });
+
+    it("should stop a model that keeps calling tools", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(
+            createMockResponse([
+              functionCallDone("call_1", "get_current_time", "{}"),
+              'data: {"type":"response.completed"}\n',
+            ]),
+          ),
+        );
+
+      const onComplete = vi.fn();
+      const onError = vi.fn();
+      const onToolActivity = vi.fn();
+
+      await client.sendMessage(mockInput, {
+        onComplete,
+        onError,
+        onToolActivity,
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 1);
+      expect(onToolActivity).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError.mock.calls[0][0].message).toContain(
+        `${MAX_TOOL_ROUNDS} rounds of tool calls`,
+      );
+      expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it("should count tool rounds per message", async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(
+            createMockResponse([
+              functionCallDone("call_1", "get_current_time", "{}"),
+              'data: {"type":"response.completed"}\n',
+            ]),
+          ),
+        );
+      await client.sendMessage(mockInput, {});
+
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          createMockResponse([
+            functionCallDone("call_2", "get_current_time", "{}"),
+            'data: {"type":"response.completed"}\n',
+          ]),
+        )
+        .mockResolvedValueOnce(
+          createMockResponse([
+            textDelta("Done."),
+            'data: {"type":"response.completed"}\n',
+          ]),
+        );
+
+      const onComplete = vi.fn();
+      const onError = vi.fn();
+      await client.sendMessage(mockInput, { onComplete, onError });
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      expect(onError).not.toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalledTimes(1);
     });
 
     it("should handle network errors", async () => {
