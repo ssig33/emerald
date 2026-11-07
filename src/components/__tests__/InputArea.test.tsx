@@ -8,6 +8,11 @@ import {
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import InputArea from "../InputArea";
+import { extractPageContent } from "../../lib/page-extractor";
+
+vi.mock("../../lib/page-extractor", () => ({
+  extractPageContent: vi.fn(),
+}));
 
 describe("InputArea", () => {
   const mockOnSendMessage = vi.fn();
@@ -273,5 +278,38 @@ describe("InputArea", () => {
     await waitFor(() => {
       expect(textField).toHaveValue("");
     });
+  });
+  it("shows an error when page capture fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(extractPageContent).mockRejectedValueOnce(
+      new Error("Receiving end does not exist."),
+    );
+
+    render(<InputArea onSendMessage={mockOnSendMessage} />);
+
+    await user.click(screen.getByTitle("Capture page content"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not capture this page: Receiving end does not exist.",
+    );
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("attaches the captured page as a chip", async () => {
+    const user = userEvent.setup();
+    vi.mocked(extractPageContent).mockResolvedValueOnce({
+      title: "Captured page",
+      url: "https://example.com/",
+      markdown: "Body",
+      html: "<p>Body</p>",
+      contentType: "markdown",
+    });
+
+    render(<InputArea onSendMessage={mockOnSendMessage} />);
+
+    await user.click(screen.getByTitle("Capture page content"));
+
+    expect(await screen.findByText("Captured page")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

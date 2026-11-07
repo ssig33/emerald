@@ -35,11 +35,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       }
       break;
 
-    case "startCapture":
-      console.log("Screen capture requested");
-      sendResponse({ success: true });
-      break;
-
     case "startImageCapture":
       (async () => {
         try {

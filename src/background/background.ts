@@ -130,19 +130,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Background received message:", message);
 
   switch (message.action) {
-    case "captureScreen":
-      if (sender.tab?.id) {
-        chrome.tabs.captureVisibleTab(
-          sender.tab.windowId,
-          { format: "png" },
-          (dataUrl) => {
-            sendResponse({ dataUrl });
-          },
-        );
-        return true;
-      }
-      break;
-
     case "captureAndCrop":
       if (sender.tab?.id && message.selection) {
         chrome.tabs.captureVisibleTab(

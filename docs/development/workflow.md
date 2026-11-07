@@ -4,9 +4,9 @@
 
 ### Prerequisites
 
-- **Node.js**: Version 18 or higher
-- **pnpm**: Package manager (install via `npm install -g pnpm`)
-- **Chrome/Chromium**: For extension testing
+- **Node.js**: Version 24 (the version CI uses)
+- **pnpm**: Package manager (the version is pinned in `packageManager` in `package.json`)
+- **Chrome/Chromium or Firefox**: For extension testing
 - **Git**: Version control
 
 ### Initial Setup
@@ -289,30 +289,29 @@ it("should work", () => {
 
 ### 1. Extension Structure
 
+`pnpm build` builds one extension per browser into `dist/chrome` and
+`dist/firefox` (`pnpm build:chrome` / `pnpm build:firefox` build one of them).
+Each has the same layout:
+
 ```
-dist/                   # Built extension files
-├── manifest.json      # Extension configuration
-├── popup.html         # Extension popup
-├── background.js      # Service worker
-└── content.js         # Content script
+dist/<browser>/
+├── manifest.json                  # Generated from src/manifest.json
+├── icon/                          # Extension icons
+└── src/
+    ├── sidepanel/index.html       # Chat UI (Chrome side panel / Firefox sidebar)
+    ├── sidepanel/index.js
+    ├── background/background.js   # Service worker (Chrome) / background script (Firefox)
+    └── content/content.js         # Content script injected into every page
 ```
 
 ### 2. Development Workflow
 
-```bash
-# Build extension for development
-pnpm build
-
-# Load extension in Chrome
-# 1. Go to chrome://extensions/
-# 2. Enable "Developer mode"
-# 3. Click "Load unpacked"
-# 4. Select the `dist` folder
-```
+Build with `pnpm build`, then load the output as described in the
+[Installation section of the README](../../README.md#installation).
 
 ### 3. Testing Extension Features
 
-- **Popup Interface**: Test UI interactions and state management
+- **Side Panel Interface**: Test UI interactions and state management
 - **Content Script**: Test page interaction and data extraction
 - **Background Script**: Test API calls and data persistence
 - **Permissions**: Verify required permissions work correctly
@@ -378,14 +377,14 @@ pnpm test src/path/to/test.ts
 
 - **Reload Extension**: Go to chrome://extensions/ and click reload
 - **Check Manifest**: Verify manifest.json syntax and permissions
-- **Check Console**: Look for errors in extension popup and background consoles
+- **Check Console**: Look for errors in the side panel and background consoles
 
 ### 2. Debugging Tools
 
 #### Chrome DevTools
 
-- **Extension Popup**: Right-click popup → Inspect
-- **Background Script**: chrome://extensions/ → Inspect views: background
+- **Side Panel**: Right-click inside the side panel → Inspect
+- **Background Script**: chrome://extensions/ → Inspect views: service worker
 - **Content Script**: Use regular page DevTools
 
 #### Development Logging
