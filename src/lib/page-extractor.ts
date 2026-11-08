@@ -21,6 +21,9 @@ export async function extractPageContent(): Promise<PageContent> {
     action: "getPageInfo",
   });
 
+  if (typeof result?.error === "string") {
+    throw new Error(result.error);
+  }
   if (!result || typeof result.text !== "string") {
     throw new Error("Failed to extract text from page");
   }

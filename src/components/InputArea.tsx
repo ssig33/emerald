@@ -16,6 +16,8 @@ import {
   Typography,
   ToggleButtonGroup,
   ToggleButton,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import CloseIcon from "@mui/icons-material/Close";
@@ -47,6 +49,7 @@ const InputArea: React.FC<InputAreaProps> = ({
   const [images, setImages] = useState<ImageData[]>([]);
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [isCapturingPage, setIsCapturingPage] = useState(false);
+  const [pageCaptureError, setPageCaptureError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
 
@@ -105,11 +108,15 @@ const InputArea: React.FC<InputAreaProps> = ({
 
   const handlePageCapture = async () => {
     setIsCapturingPage(true);
+    setPageCaptureError(null);
     try {
       const content = await extractPageContent();
       setPageContent(content);
     } catch (error) {
       console.error("Failed to capture page:", error);
+      setPageCaptureError(
+        error instanceof Error ? error.message : "Failed to capture page",
+      );
     } finally {
       setIsCapturingPage(false);
     }
@@ -257,6 +264,21 @@ const InputArea: React.FC<InputAreaProps> = ({
           <Button onClick={() => setDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={pageCaptureError !== null}
+        autoHideDuration={8000}
+        onClose={() => setPageCaptureError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="error"
+          onClose={() => setPageCaptureError(null)}
+          sx={{ width: "100%" }}
+        >
+          Could not capture this page: {pageCaptureError}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 };
