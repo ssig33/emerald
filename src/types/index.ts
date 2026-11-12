@@ -52,8 +52,3 @@ export interface SelectionRect {
   width: number;
   height: number;
 }
-
-export interface CapturedImage {
-  dataUrl: string;
-  timestamp: number;
-}

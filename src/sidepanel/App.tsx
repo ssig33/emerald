@@ -97,11 +97,6 @@ const App: React.FC = () => {
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  const handleImageCapture = useCallback((image: ImageData) => {
-    // Image is now handled directly in InputArea component
-    console.log("Image captured:", image);
-  }, []);
-
   const handleSendMessage = useCallback(
     async (
       messageText: string,
@@ -239,7 +234,6 @@ const App: React.FC = () => {
             disabled={messages.some((m) => m.status === "streaming")}
             value={inputValue}
             onChange={setInputValue}
-            onImageCapture={handleImageCapture}
           />
         </Container>
 

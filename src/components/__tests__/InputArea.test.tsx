@@ -5,7 +5,7 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import userEvent from "@testing-library/user-event";
 import InputArea from "../InputArea";
 import { extractPageContent } from "../../lib/page-extractor";
@@ -311,5 +311,70 @@ describe("InputArea", () => {
 
     expect(await screen.findByText("Captured page")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  describe("screen capture", () => {
+    const clickCamera = async () => {
+      const user = userEvent.setup();
+      await user.click(screen.getAllByRole("button")[0]); // Camera button
+    };
+
+    beforeEach(() => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    it("shows an error when the selection is too small", async () => {
+      (chrome.tabs.sendMessage as unknown as Mock).mockResolvedValueOnce({
+        error: "Selection too small (minimum 10x10 pixels)",
+      });
+
+      render(<InputArea onSendMessage={mockOnSendMessage} />);
+      await clickCamera();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not capture the screen: Selection too small (minimum 10x10 pixels)",
+      );
+    });
+
+    it("shows an error when the page has no content script", async () => {
+      (chrome.tabs.sendMessage as unknown as Mock).mockRejectedValueOnce(
+        new Error(
+          "Could not establish connection. Receiving end does not exist.",
+        ),
+      );
+
+      render(<InputArea onSendMessage={mockOnSendMessage} />);
+      await clickCamera();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not capture the screen: Could not establish connection.",
+      );
+    });
+
+    it("stays quiet when the selection is cancelled with Escape", async () => {
+      (chrome.tabs.sendMessage as unknown as Mock).mockResolvedValueOnce({
+        error: "Selection cancelled",
+      });
+
+      render(<InputArea onSendMessage={mockOnSendMessage} />);
+      await clickCamera();
+
+      await waitFor(() =>
+        expect(screen.getAllByRole("button")[0]).not.toBeDisabled(),
+      );
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("attaches the captured image as a chip", async () => {
+      (chrome.tabs.sendMessage as unknown as Mock).mockResolvedValueOnce({
+        dataUrl: "data:image/jpeg;base64,abc",
+      });
+
+      render(<InputArea onSendMessage={mockOnSendMessage} />);
+      await clickCamera();
+
+      expect(await screen.findByText("Image 1")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 });

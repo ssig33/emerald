@@ -1,8 +1,7 @@
 import { SelectionRect } from "../types";
 
-export const initScreenCapture = () => {
-  console.log("Screen capture functionality initialized");
-};
+// Pressing Escape is a deliberate cancel, so the side panel does not report it.
+export const SELECTION_CANCELLED = "Selection cancelled";
 
 export const startRectangleSelection = (): Promise<SelectionRect> => {
   return new Promise((resolve, reject) => {
@@ -49,7 +48,7 @@ export const startRectangleSelection = (): Promise<SelectionRect> => {
     const escHandler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         cleanup();
-        reject(new Error("Selection cancelled"));
+        reject(new Error(SELECTION_CANCELLED));
       }
     };
 

@@ -73,27 +73,41 @@ describe("ImageSelector", () => {
     expect(screen.getByTestId("CircularProgress")).toBeInTheDocument();
   });
 
-  it("outputs error log to console on capture error", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+  it("reports a capture error", async () => {
+    const onError = vi.fn();
     mockUseScreenCapture.captureScreen.mockRejectedValue(
-      new Error("Capture failed"),
+      new Error("Content script not available"),
     );
 
-    render(<ImageSelector onImageCapture={mockOnImageCapture} />);
+    render(
+      <ImageSelector onImageCapture={mockOnImageCapture} onError={onError} />,
+    );
 
-    const captureButton = screen.getByRole("button");
-    fireEvent.click(captureButton);
+    fireEvent.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Image capture failed:",
-        expect.any(Error),
-      );
+      expect(onError).toHaveBeenCalledWith("Content script not available");
     });
+    expect(mockOnImageCapture).not.toHaveBeenCalled();
+  });
 
-    consoleErrorSpy.mockRestore();
+  it("does not report a selection cancelled with Escape", async () => {
+    const onError = vi.fn();
+    mockUseScreenCapture.captureScreen.mockRejectedValue(
+      new Error("Selection cancelled"),
+    );
+
+    render(
+      <ImageSelector onImageCapture={mockOnImageCapture} onError={onError} />,
+    );
+
+    fireEvent.click(screen.getByRole("button"));
+
+    await waitFor(() => {
+      expect(mockUseScreenCapture.captureScreen).toHaveBeenCalledOnce();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("does not cause error when onImageCapture is not provided", async () => {

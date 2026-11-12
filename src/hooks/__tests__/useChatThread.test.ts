@@ -317,6 +317,58 @@ describe("useChatThread", () => {
     );
   });
 
+  it("saves a streaming answer once it completes, not on every chunk", async () => {
+    setActiveTabGroup(42);
+
+    const { result } = renderHook(() => useChatThread());
+
+    await waitFor(() =>
+      expect(groupChatStorage.saveGroupChat).toHaveBeenCalledTimes(1),
+    );
+    vi.mocked(groupChatStorage.saveGroupChat).mockClear();
+
+    act(() => {
+      result.current.addMessage(mockMessage);
+      result.current.addMessage({ ...mockAIMessage, content: "" });
+    });
+
+    // The question is saved right away, without the unfinished answer.
+    expect(groupChatStorage.saveGroupChat).toHaveBeenCalledTimes(1);
+    expect(groupChatStorage.saveGroupChat).toHaveBeenLastCalledWith(42, [
+      mockMessage,
+    ]);
+
+    for (const chunk of ["Hel", "lo", "!"]) {
+      act(() => {
+        result.current.appendToLastMessage(chunk);
+      });
+    }
+    act(() => {
+      result.current.appendToolInteractions([
+        { name: "browser_click", arguments: "{}", result: "Clicked." },
+      ]);
+    });
+
+    expect(groupChatStorage.saveGroupChat).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.completeLastMessage({
+        responseId: "resp_1",
+        apiKeyId: "key-a",
+      });
+    });
+
+    expect(groupChatStorage.saveGroupChat).toHaveBeenCalledTimes(2);
+    expect(groupChatStorage.saveGroupChat).toHaveBeenLastCalledWith(42, [
+      mockMessage,
+      expect.objectContaining({
+        content: "Hello!",
+        status: "done",
+        responseId: "resp_1",
+      }),
+    ]);
+  });
+
   it("does not persist when the active tab is not in a group", async () => {
     // Default beforeEach sets group -1.
     const { result } = renderHook(() => useChatThread());

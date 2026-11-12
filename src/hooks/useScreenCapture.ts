@@ -1,11 +1,7 @@
 import { useState, useCallback } from "react";
-import { CapturedImage } from "../types";
 
 export const useScreenCapture = () => {
   const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(
-    null,
-  );
 
   const captureScreen = useCallback(async (): Promise<string> => {
     setIsCapturing(true);
@@ -29,12 +25,6 @@ export const useScreenCapture = () => {
         throw new Error(response.error);
       }
 
-      const capturedData = {
-        dataUrl: response.dataUrl,
-        timestamp: Date.now(),
-      };
-
-      setCapturedImage(capturedData);
       return response.dataUrl;
     } catch (error) {
       console.error("Screen capture failed:", error);
@@ -44,14 +34,8 @@ export const useScreenCapture = () => {
     }
   }, []);
 
-  const clearCapture = useCallback(() => {
-    setCapturedImage(null);
-  }, []);
-
   return {
     captureScreen,
     isCapturing,
-    capturedImage,
-    clearCapture,
   };
 };
