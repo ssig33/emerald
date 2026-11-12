@@ -20,6 +20,7 @@ export const useChatThread = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const groupIdRef = useRef<number>(TAB_GROUP_ID_NONE);
   const [loaded, setLoaded] = useState(false);
+  const lastSavedRef = useRef<Message[] | null>(null);
 
   // Restore the conversation tied to the current tab group on mount.
   useEffect(() => {
@@ -45,7 +46,18 @@ export const useChatThread = () => {
     if (!loaded) return;
     const groupId = groupIdRef.current;
     if (groupId === TAB_GROUP_ID_NONE) return;
-    groupChatStorage.saveGroupChat(groupId, messages);
+    // A streaming answer changes on every chunk; it is saved once it completes.
+    const settled = messages.filter((m) => m.status !== "streaming");
+    const previous = lastSavedRef.current;
+    if (
+      previous &&
+      previous.length === settled.length &&
+      previous.every((m, i) => m === settled[i])
+    ) {
+      return;
+    }
+    lastSavedRef.current = settled;
+    groupChatStorage.saveGroupChat(groupId, settled);
   }, [messages, loaded]);
 
   const addMessage = (message: Message) => {

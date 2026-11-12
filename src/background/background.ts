@@ -142,10 +142,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             try {
-              // Process image using offscreen document
               const { x, y, width, height } = message.selection;
 
-              // Delegate image processing to content script (with retry functionality)
+              // Cropping needs a canvas, so it is done by the content script (with retries)
               const sendToContentScript = (retryCount = 0) => {
                 chrome.tabs.sendMessage(
                   sender.tab!.id!,

@@ -16,9 +16,7 @@ describe("useScreenCapture", () => {
     const { result } = renderHook(() => useScreenCapture());
 
     expect(result.current.isCapturing).toBe(false);
-    expect(result.current.capturedImage).toBe(null);
     expect(typeof result.current.captureScreen).toBe("function");
-    expect(typeof result.current.clearCapture).toBe("function");
   });
 
   it("screen capture works correctly", async () => {
@@ -44,10 +42,6 @@ describe("useScreenCapture", () => {
 
     expect(dataUrl).toBe(mockDataUrl);
     expect(result.current.isCapturing).toBe(false);
-    expect(result.current.capturedImage).toEqual({
-      dataUrl: mockDataUrl,
-      timestamp: mockTimestamp,
-    });
 
     expect(chromeMock.tabs.query).toHaveBeenCalledWith({
       active: true,
@@ -72,7 +66,6 @@ describe("useScreenCapture", () => {
     });
 
     expect(result.current.isCapturing).toBe(false);
-    expect(result.current.capturedImage).toBe(null);
     expect(consoleSpy).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
@@ -119,7 +112,6 @@ describe("useScreenCapture", () => {
     });
 
     expect(result.current.isCapturing).toBe(false);
-    expect(result.current.capturedImage).toBe(null);
     expect(consoleSpy).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
@@ -167,29 +159,6 @@ describe("useScreenCapture", () => {
     consoleSpy.mockRestore();
   });
 
-  it("can clear captured images", async () => {
-    const mockDataUrl = "data:image/png;base64,mockImageData";
-    const mockResponse = { dataUrl: mockDataUrl };
-
-    vi.mocked(chromeMock.tabs.sendMessage).mockResolvedValueOnce(mockResponse);
-
-    const { result } = renderHook(() => useScreenCapture());
-
-    // First perform capture
-    await act(async () => {
-      await result.current.captureScreen();
-    });
-
-    expect(result.current.capturedImage).not.toBe(null);
-
-    // Clear capture
-    act(() => {
-      result.current.clearCapture();
-    });
-
-    expect(result.current.capturedImage).toBe(null);
-  });
-
   it("can perform multiple captures", async () => {
     const mockDataUrl1 = "data:image/png;base64,mockImageData1";
     const mockDataUrl2 = "data:image/png;base64,mockImageData2";
@@ -200,19 +169,11 @@ describe("useScreenCapture", () => {
 
     const { result } = renderHook(() => useScreenCapture());
 
-    // First capture
-    await act(async () => {
-      await result.current.captureScreen();
-    });
+    const first = await act(async () => result.current.captureScreen());
+    expect(first).toBe(mockDataUrl1);
 
-    expect(result.current.capturedImage?.dataUrl).toBe(mockDataUrl1);
-
-    // Second capture
-    await act(async () => {
-      await result.current.captureScreen();
-    });
-
-    expect(result.current.capturedImage?.dataUrl).toBe(mockDataUrl2);
+    const second = await act(async () => result.current.captureScreen());
+    expect(second).toBe(mockDataUrl2);
     expect(chromeMock.tabs.sendMessage).toHaveBeenCalledTimes(2);
   });
 

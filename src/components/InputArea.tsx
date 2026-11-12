@@ -35,7 +35,6 @@ interface InputAreaProps {
   disabled?: boolean;
   value?: string;
   onChange?: (value: string) => void;
-  onImageCapture?: (image: ImageData) => void;
 }
 
 const InputArea: React.FC<InputAreaProps> = ({
@@ -43,13 +42,12 @@ const InputArea: React.FC<InputAreaProps> = ({
   disabled = false,
   value,
   onChange,
-  onImageCapture,
 }) => {
   const [message, setMessage] = useState("");
   const [images, setImages] = useState<ImageData[]>([]);
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [isCapturingPage, setIsCapturingPage] = useState(false);
-  const [pageCaptureError, setPageCaptureError] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
 
@@ -99,7 +97,10 @@ const InputArea: React.FC<InputAreaProps> = ({
 
   const handleImageCapture = (image: ImageData) => {
     setImages((prev) => [...prev, image]);
-    onImageCapture?.(image);
+  };
+
+  const handleImageCaptureError = (message: string) => {
+    setCaptureError(`Could not capture the screen: ${message}`);
   };
 
   const removeImage = (index: number) => {
@@ -108,14 +109,16 @@ const InputArea: React.FC<InputAreaProps> = ({
 
   const handlePageCapture = async () => {
     setIsCapturingPage(true);
-    setPageCaptureError(null);
+    setCaptureError(null);
     try {
       const content = await extractPageContent();
       setPageContent(content);
     } catch (error) {
       console.error("Failed to capture page:", error);
-      setPageCaptureError(
-        error instanceof Error ? error.message : "Failed to capture page",
+      setCaptureError(
+        `Could not capture this page: ${
+          error instanceof Error ? error.message : "Failed to capture page"
+        }`,
       );
     } finally {
       setIsCapturingPage(false);
@@ -182,7 +185,10 @@ const InputArea: React.FC<InputAreaProps> = ({
           input: {
             startAdornment: (
               <InputAdornment position="start">
-                <ImageSelector onImageCapture={handleImageCapture} />
+                <ImageSelector
+                  onImageCapture={handleImageCapture}
+                  onError={handleImageCaptureError}
+                />
                 {isCapturingPage ? (
                   <CircularProgress size={20} />
                 ) : (
@@ -266,17 +272,17 @@ const InputArea: React.FC<InputAreaProps> = ({
       </Dialog>
 
       <Snackbar
-        open={pageCaptureError !== null}
+        open={captureError !== null}
         autoHideDuration={8000}
-        onClose={() => setPageCaptureError(null)}
+        onClose={() => setCaptureError(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           severity="error"
-          onClose={() => setPageCaptureError(null)}
+          onClose={() => setCaptureError(null)}
           sx={{ width: "100%" }}
         >
-          Could not capture this page: {pageCaptureError}
+          {captureError}
         </Alert>
       </Snackbar>
     </Paper>
