@@ -78,7 +78,6 @@ describe("useApi", () => {
   it("should set initial state correctly", () => {
     const { result } = renderHook(() => useApi());
 
-    expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe(null);
     expect(typeof result.current.sendMessage).toBe("function");
   });
@@ -161,7 +160,6 @@ describe("useApi", () => {
       responseId: "resp_1",
       apiKeyId: "key-a",
     });
-    expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe(null);
   });
 
@@ -308,12 +306,24 @@ describe("useApi", () => {
 
     const { result } = renderHook(() => useApi());
 
+    const onError = vi.fn();
+    const onComplete = vi.fn();
+
     await act(async () => {
-      await result.current.sendMessage(mockRequest);
+      await result.current.sendMessage(
+        mockRequest,
+        [],
+        undefined,
+        undefined,
+        onComplete,
+        undefined,
+        onError,
+      );
     });
 
-    expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe("HTTP 500: Error");
+    expect(onError).toHaveBeenCalledWith("HTTP 500: Error");
+    expect(onComplete).not.toHaveBeenCalled();
   });
 
   it("should handle missing API key", async () => {
@@ -331,37 +341,21 @@ describe("useApi", () => {
 
     const { result } = renderHook(() => useApi());
 
+    const onError = vi.fn();
+
     await act(async () => {
-      await result.current.sendMessage(mockRequest);
+      await result.current.sendMessage(
+        mockRequest,
+        [],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        onError,
+      );
     });
 
-    expect(result.current.loading).toBe(false);
     expect(result.current.error).toBe("Construction failed");
-  });
-
-  it("should set loading flag correctly during sending", async () => {
-    const { result } = renderHook(() => useApi());
-
-    expect(result.current.loading).toBe(false);
-
-    await act(async () => {
-      await result.current.sendMessage(mockRequest);
-    });
-
-    expect(result.current.loading).toBe(false);
-  });
-
-  it("should handle context data with images", async () => {
-    const contextData = {
-      images: [{ dataUrl: "data:image/png;base64,abc123", timestamp: 123456 }],
-    };
-
-    const { result } = renderHook(() => useApi());
-
-    await act(async () => {
-      await result.current.sendMessage(mockRequest, [], contextData);
-    });
-
-    expect(result.current.loading).toBe(false);
+    expect(onError).toHaveBeenCalledWith("Construction failed");
   });
 });

@@ -28,7 +28,6 @@ function previousResponseId(
 }
 
 export const useApi = () => {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useSettings();
 
@@ -39,9 +38,14 @@ export const useApi = () => {
     onMessage?: (chunk: string) => void,
     onComplete?: (response: ResponseReference) => void,
     onToolActivity?: (interactions: ToolInteraction[]) => void,
+    onError?: (message: string) => void,
   ) => {
-    setLoading(true);
     setError(null);
+
+    const fail = (message: string) => {
+      setError(message);
+      onError?.(message);
+    };
 
     try {
       const apiKey = activeApiKey(settings);
@@ -83,24 +87,18 @@ export const useApi = () => {
           onToolActivity,
           onComplete: (responseId) => {
             onComplete?.({ responseId, apiKeyId: apiKey.id });
-            setLoading(false);
           },
-          onError: (err) => {
-            setError(err.message);
-            setLoading(false);
-          },
+          onError: (err) => fail(err.message),
         },
         previousId,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setLoading(false);
+      fail(err instanceof Error ? err.message : "Unknown error");
     }
   };
 
   return {
     sendMessage,
-    loading,
     error,
   };
 };
