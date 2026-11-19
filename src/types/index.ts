@@ -3,7 +3,7 @@ export interface Message {
   content: string;
   sender: "user" | "ai";
   timestamp: number;
-  status?: "streaming" | "done";
+  status?: "streaming" | "done" | "error";
   images?: ImageData[];
   pageContent?: PageContent;
   toolInteractions?: ToolInteraction[];

@@ -72,6 +72,7 @@ const App: React.FC = () => {
     appendToLastMessage,
     appendToolInteractions,
     completeLastMessage,
+    failLastMessage,
     clearCurrentGroupChat,
   } = useChatThread();
 
@@ -140,7 +141,10 @@ const App: React.FC = () => {
         {
           message: messageText,
         },
-        messages.filter((m) => m.status !== "streaming"),
+        // A failed answer has no response to continue from.
+        messages.filter(
+          (m) => m.status !== "streaming" && m.status !== "error",
+        ),
         contextToSend,
         // onMessage: receive response chunks
         (chunk: string) => {
@@ -154,6 +158,10 @@ const App: React.FC = () => {
         (interactions: ToolInteraction[]) => {
           appendToolInteractions(interactions);
         },
+        // onError: stop streaming so the input is enabled again
+        () => {
+          failLastMessage();
+        },
       );
     },
     [
@@ -162,6 +170,7 @@ const App: React.FC = () => {
       appendToLastMessage,
       appendToolInteractions,
       completeLastMessage,
+      failLastMessage,
       messages,
     ],
   );

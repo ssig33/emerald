@@ -204,6 +204,42 @@ describe("useChatThread", () => {
     expect(result.current.messages).toHaveLength(0);
   });
 
+  it("marks a streaming answer as failed and keeps what it received", () => {
+    const { result } = renderHook(() => useChatThread());
+
+    act(() => {
+      result.current.addMessage(mockMessage);
+      result.current.addMessage({ ...mockAIMessage, content: "Partial" });
+    });
+
+    act(() => {
+      result.current.failLastMessage();
+    });
+
+    expect(result.current.messages[1]).toMatchObject({
+      content: "Partial",
+      status: "error",
+    });
+    expect(result.current.messages.some((m) => m.status === "streaming")).toBe(
+      false,
+    );
+  });
+
+  it("failLastMessage leaves a finished answer as it is", () => {
+    const { result } = renderHook(() => useChatThread());
+
+    const completedAIMessage = { ...mockAIMessage, status: "done" as const };
+    act(() => {
+      result.current.addMessage(completedAIMessage);
+    });
+
+    act(() => {
+      result.current.failLastMessage();
+    });
+
+    expect(result.current.messages[0]).toEqual(completedAIMessage);
+  });
+
   it("can call appendToLastMessage multiple times", () => {
     const { result } = renderHook(() => useChatThread());
 

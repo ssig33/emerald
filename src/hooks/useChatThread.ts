@@ -118,6 +118,18 @@ export const useChatThread = () => {
     });
   };
 
+  // A failed answer stops streaming so the input is usable again.
+  const failLastMessage = () => {
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage.sender !== "ai" || lastMessage.status !== "streaming") {
+        return prev;
+      }
+      return [...prev.slice(0, -1), { ...lastMessage, status: "error" }];
+    });
+  };
+
   // Clear the current group's conversation (used by the "new conversation" action).
   const clearCurrentGroupChat = async (): Promise<void> => {
     const groupId = groupIdRef.current;
@@ -132,6 +144,7 @@ export const useChatThread = () => {
     appendToLastMessage,
     appendToolInteractions,
     completeLastMessage,
+    failLastMessage,
     clearCurrentGroupChat,
   };
 };
