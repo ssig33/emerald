@@ -67,14 +67,14 @@ describe("generateConversationTitle", () => {
       .mockResolvedValue(mockResponse("A title"));
 
     await generateConversationTitle(
-      { apiKey: "sk-test", model: "gpt-6.1-sol", reasoningEffort: "low" },
+      { apiKey: "sk-test", model: "gpt-6.2-sol", reasoningEffort: "low" },
       [makeMessage("user", "hello")],
     );
 
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
-    expect(body.model).toBe("gpt-6.1-sol");
+    expect(body.model).toBe("gpt-6.2-sol");
     expect(body.reasoning).toEqual({ effort: "low" });
   });
 

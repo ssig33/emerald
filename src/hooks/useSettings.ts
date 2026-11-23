@@ -5,8 +5,8 @@ import {
   DEFAULT_MODEL,
   DEFAULT_REASONING_EFFORT,
   ModelId,
-  isModelId,
   isReasoningEffort,
+  storedModelId,
   supportedReasoningEffort,
 } from "../lib/openai/constants";
 
@@ -108,7 +108,7 @@ function sanitize(stored: StoredSettings = {}): Settings {
     ? settings.activeApiKeyId
     : apiKeys[0].id;
 
-  const model = isModelId(settings.model) ? settings.model : DEFAULT_MODEL;
+  const model = storedModelId(settings.model) ?? DEFAULT_MODEL;
   const reasoningEffort = isReasoningEffort(settings.reasoningEffort)
     ? settings.reasoningEffort
     : DEFAULT_REASONING_EFFORT;

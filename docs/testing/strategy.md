@@ -210,7 +210,7 @@ beforeEach(async () => {
 });
 
 it("restores the stored model", async () => {
-  await chromeMock.storage.local.set({ settings: { model: "gpt-6.1-sol" } });
+  await chromeMock.storage.local.set({ settings: { model: "gpt-6.2-sol" } });
   // ...
 });
 ```
