@@ -11,16 +11,16 @@ and extensibility.
 The default base URL, the selectable models and the selectable reasoning efforts
 live in `src/lib/openai/constants.ts`:
 
-| Setting           | Value                                           |
-| ----------------- | ----------------------------------------------- |
-| Default base URL  | `https://api.openai.com/v1`                     |
-| Endpoint          | `<base URL>/responses`                          |
-| Models            | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6-luna`    |
-| Default model     | `gpt-6-luna`                                    |
-| Reasoning efforts | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
-| Default effort    | `max`                                           |
+| Setting           | Value                                                         |
+| ----------------- | ------------------------------------------------------------- |
+| Default base URL  | `https://api.openai.com/v1`                                   |
+| Endpoint          | `<base URL>/responses`                                        |
+| Models            | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6.1-terra`, `gpt-6-luna` |
+| Default model     | `gpt-6-luna`                                                  |
+| Reasoning efforts | `none`, `low`, `medium`, `high`, `xhigh`, `max`               |
+| Default effort    | `max`                                                         |
 
-The model tiers are surfaced in the UI as Astra, Sol and Luna. Astra and Sol do
+The model tiers are surfaced in the UI as Astra, Sol, Terra and Luna. Astra and Sol do
 not accept the `none` effort, so the reasoning picker only lists the efforts the
 selected model accepts; switching to a model that rejects the current effort
 moves to its lightest accepted effort. The user-provided

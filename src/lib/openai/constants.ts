@@ -13,6 +13,7 @@ export function responsesUrl(baseUrl = DEFAULT_BASE_URL): string {
 export const MODEL_IDS = [
   "gpt-6.2-astra",
   "gpt-6.2-sol",
+  "gpt-6.1-terra",
   "gpt-6-luna",
 ] as const;
 
@@ -47,6 +48,7 @@ export const MODELS: ModelOption[] = [
     label: "Sol",
     reasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
   },
+  { id: "gpt-6.1-terra", label: "Terra", reasoningEfforts: REASONING_EFFORTS },
   { id: "gpt-6-luna", label: "Luna", reasoningEfforts: REASONING_EFFORTS },
 ];
 
