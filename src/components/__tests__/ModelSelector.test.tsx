@@ -12,7 +12,7 @@ describe("ModelSelector", () => {
   });
 
   const toggleButton = () =>
-    screen.getByRole("button", { name: /Luna|Sol|Astra/ });
+    screen.getByRole("button", { name: /Luna|Terra|Sol|Astra/ });
 
   /** Render, wait for the stored settings, then expand the pickers. */
   const renderExpanded = async () => {
@@ -114,19 +114,27 @@ describe("ModelSelector", () => {
     ).toHaveTextContent("low");
   });
 
-  it("offers Astra, Sol and Luna", async () => {
+  it("offers Astra, Sol, Terra and Luna", async () => {
     const user = await renderExpanded();
 
     await openSelect(user, "Model");
 
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),
-    ).toEqual(["Astra", "Sol", "Luna"]);
+    ).toEqual(["Astra", "Sol", "Terra", "Luna"]);
   });
 
-  it("offers none only for Luna", async () => {
+  it("offers none for Luna and Terra but not Astra", async () => {
     const user = await renderExpanded();
 
+    await openSelect(user, "Reasoning");
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
+    await user.keyboard("{Escape}");
+
+    await openSelect(user, "Model");
+    await user.click(screen.getByRole("option", { name: "Terra" }));
     await openSelect(user, "Reasoning");
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),

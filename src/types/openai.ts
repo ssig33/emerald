@@ -53,7 +53,7 @@ export interface WebSearchTool {
 
 export type ToolDefinition = FunctionTool | WebSearchTool;
 
-/** GPT-6 Luna accepts all of these; Astra and Sol accept all but none. */
+/** Luna and Terra accept all of these; Astra and Sol accept all but none. */
 export type ReasoningEffort =
   "none" | "low" | "medium" | "high" | "xhigh" | "max";
 
