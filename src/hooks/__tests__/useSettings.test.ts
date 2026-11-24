@@ -42,12 +42,12 @@ describe("useSettings", () => {
   });
 
   it("restores the stored model and reasoning effort", async () => {
-    await storeSettings({ model: "gpt-6.1-sol", reasoningEffort: "medium" });
+    await storeSettings({ model: "gpt-6.2-sol", reasoningEffort: "medium" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
 
-    expect(result.current.settings.model).toBe("gpt-6.1-sol");
+    expect(result.current.settings.model).toBe("gpt-6.2-sol");
     expect(result.current.settings.reasoningEffort).toBe("medium");
   });
 
@@ -64,13 +64,23 @@ describe("useSettings", () => {
     expect(result.current.settings.reasoningEffort).toBe("max");
   });
 
-  it("moves an effort the stored model rejects to its lightest effort", async () => {
-    await storeSettings({ model: "gpt-6.1-sol", reasoningEffort: "none" });
+  it("keeps the tier of a model stored under its earlier ID", async () => {
+    await storeSettings({ model: "gpt-6.1-sol", reasoningEffort: "high" });
 
     const { result } = renderHook(() => useSettings());
     await waitLoaded(result);
 
-    expect(result.current.settings.model).toBe("gpt-6.1-sol");
+    expect(result.current.settings.model).toBe("gpt-6.2-sol");
+    expect(result.current.settings.reasoningEffort).toBe("high");
+  });
+
+  it("moves an effort the stored model rejects to its lightest effort", async () => {
+    await storeSettings({ model: "gpt-6.2-sol", reasoningEffort: "none" });
+
+    const { result } = renderHook(() => useSettings());
+    await waitLoaded(result);
+
+    expect(result.current.settings.model).toBe("gpt-6.2-sol");
     expect(result.current.settings.reasoningEffort).toBe("low");
   });
 
@@ -82,14 +92,14 @@ describe("useSettings", () => {
       await result.current.updateReasoningEffort("none");
     });
     await act(async () => {
-      await result.current.updateModel("gpt-6-astra");
+      await result.current.updateModel("gpt-6.2-astra");
     });
 
-    expect(result.current.settings.model).toBe("gpt-6-astra");
+    expect(result.current.settings.model).toBe("gpt-6.2-astra");
     expect(result.current.settings.reasoningEffort).toBe("low");
     expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
       settings: expect.objectContaining({
-        model: "gpt-6-astra",
+        model: "gpt-6.2-astra",
         reasoningEffort: "low",
       }),
     });
@@ -100,17 +110,17 @@ describe("useSettings", () => {
     await waitLoaded(result);
 
     await act(async () => {
-      await result.current.updateModel("gpt-6-astra");
+      await result.current.updateModel("gpt-6.2-astra");
     });
     await act(async () => {
       await result.current.updateReasoningEffort("high");
     });
 
-    expect(result.current.settings.model).toBe("gpt-6-astra");
+    expect(result.current.settings.model).toBe("gpt-6.2-astra");
     expect(result.current.settings.reasoningEffort).toBe("high");
     expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
       settings: expect.objectContaining({
-        model: "gpt-6-astra",
+        model: "gpt-6.2-astra",
         reasoningEffort: "high",
       }),
     });
@@ -145,11 +155,11 @@ describe("useSettings", () => {
 
     act(() => {
       emitStorageChange({
-        settings: { newValue: { model: "gpt-6.1-sol" } },
+        settings: { newValue: { model: "gpt-6.2-sol" } },
       });
     });
 
-    expect(result.current.settings.model).toBe("gpt-6.1-sol");
+    expect(result.current.settings.model).toBe("gpt-6.2-sol");
     expect(result.current.settings.s3Region).toBe("us-east-1");
   });
 
@@ -159,7 +169,7 @@ describe("useSettings", () => {
 
     act(() => {
       emitStorageChange(
-        { settings: { newValue: { model: "gpt-6.1-sol" } } },
+        { settings: { newValue: { model: "gpt-6.2-sol" } } },
         "session",
       );
     });
@@ -276,18 +286,18 @@ describe("useSettings", () => {
 
     await act(async () => {
       await Promise.all([
-        result.current.updateModel("gpt-6-astra"),
+        result.current.updateModel("gpt-6.2-astra"),
         result.current.updateModelSelectorOpen(true),
       ]);
     });
 
     expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
       settings: expect.objectContaining({
-        model: "gpt-6-astra",
+        model: "gpt-6.2-astra",
         modelSelectorOpen: true,
       }),
     });
-    expect(result.current.settings.model).toBe("gpt-6-astra");
+    expect(result.current.settings.model).toBe("gpt-6.2-astra");
     expect(result.current.settings.modelSelectorOpen).toBe(true);
   });
 
@@ -298,7 +308,7 @@ describe("useSettings", () => {
     await waitLoaded(second.result);
 
     await act(async () => {
-      await first.result.current.updateModel("gpt-6.1-sol");
+      await first.result.current.updateModel("gpt-6.2-sol");
     });
     await act(async () => {
       await second.result.current.updateSystemPrompt("Be terse.");
@@ -306,7 +316,7 @@ describe("useSettings", () => {
 
     expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
       settings: expect.objectContaining({
-        model: "gpt-6.1-sol",
+        model: "gpt-6.2-sol",
         systemPrompt: "Be terse.",
       }),
     });
@@ -322,12 +332,12 @@ describe("useSettings", () => {
       await first.result.current.updateReasoningEffort("none");
     });
     await act(async () => {
-      await second.result.current.updateModel("gpt-6-astra");
+      await second.result.current.updateModel("gpt-6.2-astra");
     });
 
     expect(chromeMock.storage.local.set).toHaveBeenLastCalledWith({
       settings: expect.objectContaining({
-        model: "gpt-6-astra",
+        model: "gpt-6.2-astra",
         reasoningEffort: "low",
       }),
     });

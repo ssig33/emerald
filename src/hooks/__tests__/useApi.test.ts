@@ -24,7 +24,7 @@ vi.mock("../useSettings", async (importOriginal) => ({
       ],
       activeApiKeyId: "key-a",
       systemPrompt: "You are a helpful AI assistant for testing.",
-      model: "gpt-6-astra",
+      model: "gpt-6.2-astra",
       reasoningEffort: "high",
     },
     loading: false,
@@ -128,7 +128,7 @@ describe("useApi", () => {
     expect(OpenAIClient).toHaveBeenCalledWith({
       apiKey: "sk-test-key-123",
       baseUrl: "https://a.example.com/v1",
-      model: "gpt-6-astra",
+      model: "gpt-6.2-astra",
       reasoningEffort: "high",
     });
 

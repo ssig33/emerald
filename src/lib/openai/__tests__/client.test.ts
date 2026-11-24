@@ -104,7 +104,7 @@ describe("OpenAIClient", () => {
 
       const configured = new OpenAIClient({
         apiKey: mockApiKey,
-        model: "gpt-6.1-sol",
+        model: "gpt-6.2-sol",
         reasoningEffort: "medium",
       });
       await configured.sendMessage(mockInput, {});
@@ -113,7 +113,7 @@ describe("OpenAIClient", () => {
         (globalThis.fetch as any).mock.calls[0][1].body,
       );
 
-      expect(requestBody.model).toBe("gpt-6.1-sol");
+      expect(requestBody.model).toBe("gpt-6.2-sol");
       expect(requestBody.reasoning).toEqual({ effort: "medium" });
     });
 
@@ -134,7 +134,7 @@ describe("OpenAIClient", () => {
 
       const configured = new OpenAIClient({
         apiKey: mockApiKey,
-        model: "gpt-6-astra",
+        model: "gpt-6.2-astra",
         reasoningEffort: "high",
       });
       await configured.sendMessage(mockInput, {});
@@ -143,7 +143,7 @@ describe("OpenAIClient", () => {
         (globalThis.fetch as any).mock.calls[1][1].body,
       );
 
-      expect(followUpBody.model).toBe("gpt-6-astra");
+      expect(followUpBody.model).toBe("gpt-6.2-astra");
       expect(followUpBody.reasoning).toEqual({ effort: "high" });
     });
 

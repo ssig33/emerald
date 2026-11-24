@@ -15,7 +15,7 @@ live in `src/lib/openai/constants.ts`:
 | ----------------- | ----------------------------------------------- |
 | Default base URL  | `https://api.openai.com/v1`                     |
 | Endpoint          | `<base URL>/responses`                          |
-| Models            | `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`      |
+| Models            | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6-luna`    |
 | Default model     | `gpt-6-luna`                                    |
 | Reasoning efforts | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
 | Default effort    | `max`                                           |
@@ -103,7 +103,7 @@ confirmation, so this keeps a model from driving the page indefinitely.
 
 ```json
 {
-  "model": "gpt-6.1-sol",
+  "model": "gpt-6.2-sol",
   "input": [{ "role": "user", "content": "..." }],
   "tools": [
     { "type": "function", "name": "get_current_time" },

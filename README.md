@@ -5,7 +5,7 @@ compatible with it. Supports Chrome and Firefox.
 
 ## Features
 
-- Chat with GPT-6 Astra (`gpt-6-astra`), Sol (`gpt-6.1-sol`) or Luna (`gpt-6-luna`), switchable from the chat UI
+- Chat with GPT-6.2 Astra (`gpt-6.2-astra`), GPT-6.2 Sol (`gpt-6.2-sol`) or GPT-6 Luna (`gpt-6-luna`), switchable from the chat UI
 - Reasoning effort selectable from the chat UI (`low`, `medium`, `high`, `xhigh`, `max`; Luna also accepts `none`)
 - Web search through OpenAI's built-in `web_search` tool
 - Browser agent: the assistant reads the DOM of the active tab, takes screenshots

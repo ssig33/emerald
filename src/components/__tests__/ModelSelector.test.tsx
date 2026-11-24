@@ -46,7 +46,7 @@ describe("ModelSelector", () => {
 
   it("summarises the current selection on the toggle", async () => {
     vi.mocked(chromeMock.storage.local.get).mockResolvedValue({
-      settings: { model: "gpt-6-astra", reasoningEffort: "low" },
+      settings: { model: "gpt-6.2-astra", reasoningEffort: "low" },
     });
 
     render(<ModelSelector />);
@@ -96,7 +96,7 @@ describe("ModelSelector", () => {
   it("shows the stored selection", async () => {
     vi.mocked(chromeMock.storage.local.get).mockResolvedValue({
       settings: {
-        model: "gpt-6-astra",
+        model: "gpt-6.2-astra",
         reasoningEffort: "low",
         modelSelectorOpen: true,
       },
@@ -150,7 +150,7 @@ describe("ModelSelector", () => {
 
     await waitFor(() => {
       expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
-        settings: expect.objectContaining({ model: "gpt-6.1-sol" }),
+        settings: expect.objectContaining({ model: "gpt-6.2-sol" }),
       });
     });
   });
